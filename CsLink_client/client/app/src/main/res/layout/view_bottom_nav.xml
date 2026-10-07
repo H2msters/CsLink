@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutBottomNav"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:background="#FAFAFA"
+    android:orientation="horizontal">
+
+    <Button
+        android:id="@+id/btnTabUsers"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:backgroundTint="#E0E0E0"
+        android:text="在线成员"
+        android:textColor="#333333"
+        android:textSize="13sp" />
+
+    <Button
+        android:id="@+id/btnTabChat"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:backgroundTint="#1E88E5"
+        android:text="聊天消息"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp" />
+
+    <Button
+        android:id="@+id/btnTabProfile"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:backgroundTint="#E0E0E0"
+        android:text="个人中心"
+        android:textColor="#333333"
+        android:textSize="13sp" />
+</LinearLayout>

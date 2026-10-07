@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 基础黑白 -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- 校园蓝主色调 -->
+    <color name="brand_primary">#1E88E5</color>        <!-- 主色：标题栏、主要按钮 -->
+    <color name="brand_primary_dark">#1565C0</color>   <!-- 深色：顶部手机状态栏 -->
+    <color name="brand_accent">#00ACC1</color>         <!-- 强调色：高亮标记、徽标 -->
+
+    <!-- 背景与边框灰阶 -->
+    <color name="app_background">#F4F6F9</color>       <!-- App 全局浅灰底色 -->
+    <color name="surface_card">#FFFFFF</color>         <!-- 卡片/输入框纯白底色 -->
+    <color name="divider_line">#E0E4E8</color>         <!-- 分割线与浅色边框 -->
+
+    <!-- 文字排版阶梯色 -->
+    <color name="text_main">#1F2937</color>            <!-- 主要正文（深灰，比纯黑柔和） -->
+    <color name="text_muted">#6B7280</color>           <!-- 次要信息、时间戳、提示灰字 -->
+</resources>

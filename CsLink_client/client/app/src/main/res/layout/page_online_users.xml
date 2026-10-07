@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutUserListContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F4F6F9"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:visibility="gone">
+
+    <!-- 顶部操作栏：大厅状态与快速创建房间 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvOnlineCount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="讨论区在线 (0人)"
+            android:textColor="#1F2937"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnCreateGameRoom"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:backgroundTint="#1E88E5"
+            android:text="创建游戏房"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 游戏/活动房间列表区域 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"
+        android:text="联机对战活动室"
+        android:textColor="#6B7280"
+        android:textSize="13sp" />
+
+    <ListView
+        android:id="@+id/lvGameRooms"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:background="#FFFFFF"
+        android:divider="#E0E4E8"
+        android:dividerHeight="1dp" />
+
+    <!-- 当前讨论区在线成员 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"
+        android:text="当前讨论区成员"
+        android:textColor="#6B7280"
+        android:textSize="13sp" />
+
+    <ListView
+        android:id="@+id/lvOnlineUsers"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FFFFFF"
+        android:divider="#E0E4E8"
+        android:dividerHeight="1dp" />
+
+</LinearLayout>
