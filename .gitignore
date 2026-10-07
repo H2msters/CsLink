@@ -1,2 +1,3 @@
 /server/.venv
 /server/.vs
+/server/__pycache__
