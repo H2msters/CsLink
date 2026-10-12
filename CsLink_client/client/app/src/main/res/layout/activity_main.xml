@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:text="校园网 1号聊天室"
+            android:text="数字化课堂 [讨论频道]"
             android:textColor="#FFFFFF"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -42,7 +42,9 @@
             android:textSize="13sp" />
     </RelativeLayout>
 
-    <!-- 2. 中间内容容器 -->
+    <!-- 2. 中间内容容器：四大子页面组件 -->
+
+    <!-- Page 0: 成员名册与互动房间 -->
     <include
         layout="@layout/page_online_users"
         android:layout_width="0dp"
@@ -52,6 +54,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Page 1: 随堂讨论交流区 -->
     <include
         layout="@layout/page_chat"
         android:layout_width="0dp"
@@ -61,6 +64,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Page 2: 班级事务与作业通知 (新增挂载) -->
+    <include
+        layout="@layout/page_affairs"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
+        app:layout_constraintBottom_toTopOf="@id/layoutBottomNavContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Page 3: 个人中心与配置 -->
     <include
         layout="@layout/page_profile"
         android:layout_width="0dp"
@@ -70,7 +84,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 3. 底部导航栏组件 -->
+    <!-- 3. 底部四栏导航条组件 -->
     <FrameLayout
         android:id="@+id/layoutBottomNavContainer"
         android:layout_width="0dp"

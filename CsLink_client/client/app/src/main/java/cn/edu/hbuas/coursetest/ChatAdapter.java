@@ -61,6 +61,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
                 holder.tvMySender.setText(message.getSender());
                 holder.tvMyTime.setText(message.getFormattedTime());
+                bindRoleBadge(holder.tvMyRoleBadge, message.getRole());
                 loadAvatar(holder.ivMyAvatar, latestAvatar);
 
                 if ("image".equals(message.getType())) {
@@ -80,6 +81,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
                 holder.tvOtherSender.setText(message.getSender());
                 holder.tvOtherTime.setText(message.getFormattedTime());
+                bindRoleBadge(holder.tvOtherRoleBadge, message.getRole());
                 loadAvatar(holder.ivOtherAvatar, latestAvatar);
 
                 if ("image".equals(message.getType())) {
@@ -93,6 +95,24 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                     holder.tvOtherContent.setText(message.getContent());
                 }
             }
+        }
+    }
+
+    private void bindRoleBadge(TextView badgeView, String role) {
+        if (badgeView == null) return;
+        badgeView.setVisibility(View.VISIBLE);
+        if ("teacher".equalsIgnoreCase(role)) {
+            badgeView.setText("教师");
+            badgeView.setBackgroundColor(Color.parseColor("#FEF3C7")); // 金黄底色
+            badgeView.setTextColor(Color.parseColor("#B45309"));       // 深棕字色
+        } else if ("monitor".equalsIgnoreCase(role)) {
+            badgeView.setText("班长");
+            badgeView.setBackgroundColor(Color.parseColor("#DCFCE7")); // 浅绿底色
+            badgeView.setTextColor(Color.parseColor("#15803D"));       // 深绿字色
+        } else {
+            badgeView.setText("学生");
+            badgeView.setBackgroundColor(Color.parseColor("#E0E7FF")); // 浅蓝底色
+            badgeView.setTextColor(Color.parseColor("#4338CA"));       // 靛蓝字色
         }
     }
 
@@ -164,6 +184,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         LinearLayout layoutOtherMsg;
         ImageView ivOtherAvatar;
         TextView tvOtherSender;
+        TextView tvOtherRoleBadge;
         TextView tvOtherTime;
         TextView tvOtherContent;
         ImageView ivOtherImage;
@@ -171,6 +192,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         LinearLayout layoutMyMsg;
         ImageView ivMyAvatar;
         TextView tvMySender;
+        TextView tvMyRoleBadge;
         TextView tvMyTime;
         TextView tvMyContent;
         ImageView ivMyImage;
@@ -182,6 +204,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             layoutOtherMsg = itemView.findViewById(R.id.layoutOtherMsg);
             ivOtherAvatar = itemView.findViewById(R.id.ivOtherAvatar);
             tvOtherSender = itemView.findViewById(R.id.tvOtherSender);
+            tvOtherRoleBadge = itemView.findViewById(R.id.tvOtherRoleBadge);
             tvOtherTime = itemView.findViewById(R.id.tvOtherTime);
             tvOtherContent = itemView.findViewById(R.id.tvOtherContent);
             ivOtherImage = itemView.findViewById(R.id.ivOtherImage);
@@ -189,6 +212,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             layoutMyMsg = itemView.findViewById(R.id.layoutMyMsg);
             ivMyAvatar = itemView.findViewById(R.id.ivMyAvatar);
             tvMySender = itemView.findViewById(R.id.tvMySender);
+            tvMyRoleBadge = itemView.findViewById(R.id.tvMyRoleBadge);
             tvMyTime = itemView.findViewById(R.id.tvMyTime);
             tvMyContent = itemView.findViewById(R.id.tvMyContent);
             ivMyImage = itemView.findViewById(R.id.ivMyImage);

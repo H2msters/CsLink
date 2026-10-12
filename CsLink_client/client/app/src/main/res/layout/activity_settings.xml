@@ -35,116 +35,187 @@
             android:textStyle="bold" />
     </RelativeLayout>
 
-    <!-- 2. 设置项主体区域 -->
-    <LinearLayout
+    <!-- 可滚动区域，防止展开开发者选项后超出屏幕 -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- 网络配置卡片 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="网络连接配置"
-            android:textColor="#6B7280"
-            android:textSize="13sp"
-            android:layout_marginBottom="8dp" />
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#FFFFFF"
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 网络配置卡片 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="服务器 IP 地址"
-                android:textColor="#1F2937"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <EditText
-                android:id="@+id/etServerIp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="例如：192.168.137.1"
-                android:textSize="14sp" />
-
-            <Button
-                android:id="@+id/btnSaveIp"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:layout_marginTop="12dp"
-                android:backgroundTint="#1E88E5"
-                android:text="保存配置并重连"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
-
-        <!-- 缓存与维护卡片 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="存储与维护"
-            android:textColor="#6B7280"
-            android:textSize="13sp"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="8dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#FFFFFF"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <Button
-                android:id="@+id/btnClearCache"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:backgroundTint="#E53935"
-                android:text="清除本地消息缓存"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
-
-        <!-- 关于信息卡片 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="关于应用"
-            android:textColor="#6B7280"
-            android:textSize="13sp"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="8dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#FFFFFF"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="CampusChat 局域网协同聊天"
-                android:textColor="#1F2937"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="版本：v1.2.0\n架构：FastAPI + WebSocket + Android Java\n定位：校园局域网通信与论坛交互平台"
+                android:text="网络连接配置"
                 android:textColor="#6B7280"
                 android:textSize="13sp"
-                android:lineSpacingExtra="3dp" />
-        </LinearLayout>
+                android:layout_marginBottom="8dp" />
 
-    </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="教师中枢 IP 地址"
+                    android:textColor="#1F2937"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/etServerIp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="例如：192.168.137.1"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/btnSaveIp"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="#1E88E5"
+                    android:text="保存配置并重连"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- 缓存与维护卡片 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="存储与维护"
+                android:textColor="#6B7280"
+                android:textSize="13sp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <Button
+                    android:id="@+id/btnClearCache"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:backgroundTint="#E53935"
+                    android:text="清除本地消息缓存与配置"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- 关于信息卡片（连续点击版本信息可解锁开发者模式） -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="关于应用"
+                android:textColor="#6B7280"
+                android:textSize="13sp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ClassLink 数字化智慧课堂"
+                    android:textColor="#1F2937"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvAppVersion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="版本：v2.0.0 (离线教学专用版)\n架构：FastAPI + OkHttp WebSocket + Android\n定位：教师机中枢驱动的局域网课堂互动平台"
+                    android:textColor="#6B7280"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="3dp" />
+            </LinearLayout>
+
+            <!-- 4. 隐藏的开发者调试卡片（默认 GONE） -->
+            <LinearLayout
+                android:id="@+id/layoutDevOptions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="开发者特权配置 (已解锁)"
+                    android:textColor="#D97706"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#FFFBEB"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="教师授权口令 (Auth Token)"
+                        android:textColor="#92400E"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/etDevToken"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:hint="输入授权口令 (默认 teacher888)"
+                        android:inputType="textPassword"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/btnDevToggleRole"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="10dp"
+                        android:backgroundTint="#F59E0B"
+                        android:text="切换当前模式：【学生端】"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/btnSaveDevConfig"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="8dp"
+                        android:backgroundTint="#B45309"
+                        android:text="应用身份配置并生效"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>

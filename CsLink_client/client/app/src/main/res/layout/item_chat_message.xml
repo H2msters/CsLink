@@ -59,8 +59,25 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="某同学"
-                    android:textColor="#6B7280"
-                    android:textSize="12sp" />
+                    android:textColor="#1F2937"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- 新增：他人身份徽章 -->
+                <TextView
+                    android:id="@+id/tvOtherRoleBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="#E0E7FF"
+                    android:paddingStart="6dp"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="6dp"
+                    android:paddingBottom="1dp"
+                    android:text="学生"
+                    android:textColor="#4338CA"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/tvOtherTime"
@@ -131,13 +148,30 @@
                     android:textColor="#9CA3AF"
                     android:textSize="10sp" />
 
+                <!-- 新增：自己身份徽章 -->
+                <TextView
+                    android:id="@+id/tvMyRoleBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="#FEF3C7"
+                    android:paddingStart="6dp"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="6dp"
+                    android:paddingBottom="1dp"
+                    android:text="教师"
+                    android:textColor="#B45309"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/tvMySender"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="我"
-                    android:textColor="#6B7280"
-                    android:textSize="12sp" />
+                    android:textColor="#1F2937"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <TextView

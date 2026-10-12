@@ -3,37 +3,63 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/layoutBottomNav"
     android:layout_width="match_parent"
-    android:layout_height="48dp"
-    android:background="#FAFAFA"
-    android:orientation="horizontal">
+    android:layout_height="56dp"
+    android:orientation="horizontal"
+    android:background="#FFFFFF"
+    android:elevation="8dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
+    <!-- Tab 1: 成员名册 -->
     <Button
         android:id="@+id/btnTabUsers"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="2dp"
         android:backgroundTint="#E0E0E0"
-        android:text="在线成员"
+        android:text="成员名册"
         android:textColor="#333333"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
+    <!-- Tab 2: 随堂讨论 -->
     <Button
         android:id="@+id/btnTabChat"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
         android:backgroundTint="#1E88E5"
-        android:text="聊天消息"
+        android:text="随堂讨论"
         android:textColor="#FFFFFF"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
+    <!-- Tab 3: 班级事务 (新增) -->
+    <Button
+        android:id="@+id/btnTabAffairs"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
+        android:backgroundTint="#E0E0E0"
+        android:text="班级事务"
+        android:textColor="#333333"
+        android:textSize="12sp" />
+
+    <!-- Tab 4: 个人中心 -->
     <Button
         android:id="@+id/btnTabProfile"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="4dp"
         android:backgroundTint="#E0E0E0"
         android:text="个人中心"
         android:textColor="#333333"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
+
 </LinearLayout>
