@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <!-- 1. 顶部抢答标题与环节提示 -->
+    <TextView
+        android:id="@+id/tvBuzzerHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="⚡ 课堂即时抢答"
+        android:textColor="#E11D48"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvBuzzerTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="题目：第一单元课后巩固测试"
+        android:textColor="#374151"
+        android:textSize="15sp"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tvBuzzerStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="全员准备... 点击大按钮立即抢答！"
+        android:textColor="#6B7280"
+        android:textSize="13sp" />
+
+    <!-- 2. 中央大尺寸抢答圆形按钮区 -->
+    <FrameLayout
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="20dp">
+
+        <Button
+            android:id="@+id/btnBuzzAction"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:backgroundTint="#EF4444"
+            android:text="抢！"
+            android:textColor="#FFFFFF"
+            android:textSize="44sp"
+            android:textStyle="bold"
+            android:elevation="12dp" />
+
+        <!-- 抢答完成后的结果遮罩面板 (默认隐藏) -->
+        <LinearLayout
+            android:id="@+id/layoutBuzzResult"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:background="#10B981"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="12dp"
+            android:elevation="14dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🏆 抢答成功"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvWinnerName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="蔡俊威"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCostTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="用时：235 ms"
+                android:textColor="#ECFDF5"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 3. 底部关闭 / 退出弹窗按钮 -->
+    <Button
+        android:id="@+id/btnDismissBuzzer"
+        android:layout_width="wrap_content"
+        android:layout_height="38dp"
+        android:layout_marginTop="8dp"
+        android:backgroundTint="#E5E7EB"
+        android:text="退出抢答"
+        android:textColor="#374151"
+        android:textSize="13sp" />
+
+</LinearLayout>

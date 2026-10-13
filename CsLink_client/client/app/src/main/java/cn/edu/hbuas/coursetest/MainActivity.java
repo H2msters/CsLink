@@ -1,5 +1,6 @@
 package cn.edu.hbuas.coursetest;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -7,14 +8,21 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Base64;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -62,41 +70,50 @@ public class MainActivity extends AppCompatActivity {
     private static final String DEFAULT_ROLE = "student";
 
     private TextView tvTitle;
-    private Button btnReconnect;
 
-    // 页面0：花名册与小组房间
+    // 页面0：名册与互动房间
     private LinearLayout layoutUserListContainer;
     private TextView tvOnlineCount;
     private Button btnCreateGameRoom;
     private ListView lvGameRooms;
     private ListView lvOnlineUsers;
 
-    // 页面1：随堂讨论交流区
+    // 页面1：随堂讨论与 QQ 风格更多面板
+    private View pageChatLayout;
     private RecyclerView recyclerViewChat;
     private LinearLayoutManager chatLayoutManager;
     private LinearLayout layoutInputBar;
-    private Button btnPickImage;
     private EditText etMessage;
     private Button btnSend;
+    private Button btnToggleMorePanel;
+    private LinearLayout layoutMorePanel;
+    private Button btnPickImage;
+    private LinearLayout itemPanelStartBuzz;
+    private Button btnPanelBuzzAction;
 
-    // 页面2：班级事务与作业
+    // 页面2：班级事务与分栏
     private View pageAffairsLayout;
     private TextView tvAffairsSummary;
     private Button btnPublishAffair;
+    private Button btnFilterNotice;
+    private Button btnFilterHomework;
     private RecyclerView rvAffairs;
     private TextView tvEmptyAffairs;
-    private List<AffairItem> affairList;
+    private List<AffairItem> allAffairList;
+    private List<AffairItem> displayAffairList;
     private AffairsAdapter affairsAdapter;
+    private String currentAffairFilter = "notice"; // "notice" 或 "homework"
 
     // 页面3：个人中心
     private LinearLayout layoutProfileContainer;
     private ImageView ivUserAvatar;
     private TextView tvProfileNickname;
     private TextView tvProfileStatus;
+    private Button btnProfileReconnect;
     private Button btnEditProfileName;
     private Button btnSettings;
 
-    // 底部四大导航按钮
+    // 底部四大导航
     private Button btnTabUsers;
     private Button btnTabChat;
     private Button btnTabAffairs;
@@ -108,12 +125,20 @@ public class MainActivity extends AppCompatActivity {
     private ChatAdapter chatAdapter;
 
     private List<RosterUser> rosterUserList;
-    private List<String> onlineUserDisplayList;
-    private ArrayAdapter<String> userListAdapter;
+
+    private RosterAdapter userListAdapter;
 
     private List<String> gameRoomDisplayList;
     private List<String> gameRoomIdList;
     private ArrayAdapter<String> gameRoomAdapter;
+
+    // 抢答弹窗组件
+    private Dialog currentBuzzerDialog;
+    private TextView tvBuzzerStatus;
+    private Button btnBuzzAction;
+    private LinearLayout layoutBuzzResult;
+    private TextView tvWinnerName;
+    private TextView tvCostTime;
 
     private OkHttpClient httpClient;
     private WebSocket webSocket;
@@ -193,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
         initAdapters();
         initListeners();
         updateProfileDisplay();
-        switchPage(1); // 默认进入随堂讨论
+        switchPage(1); // 默认定位在随堂讨论
         connectWebSocket();
     }
 
@@ -227,7 +252,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void initViews() {
         tvTitle = findViewById(R.id.tvTitle);
-        btnReconnect = findViewById(R.id.btnReconnect);
 
         // 页面0
         layoutUserListContainer = findViewById(R.id.layoutUserListContainer);
@@ -237,28 +261,36 @@ public class MainActivity extends AppCompatActivity {
         lvOnlineUsers = findViewById(R.id.lvOnlineUsers);
 
         // 页面1
+        pageChatLayout = findViewById(R.id.pageChatLayout);
         recyclerViewChat = findViewById(R.id.recyclerViewChat);
         layoutInputBar = findViewById(R.id.layoutInputBar);
-        btnPickImage = findViewById(R.id.btnPickImage);
         etMessage = findViewById(R.id.etMessage);
         btnSend = findViewById(R.id.btnSend);
+        btnToggleMorePanel = findViewById(R.id.btnToggleMorePanel);
+        layoutMorePanel = findViewById(R.id.layoutMorePanel);
+        btnPickImage = findViewById(R.id.btnPickImage);
+        itemPanelStartBuzz = findViewById(R.id.itemPanelStartBuzz);
+        btnPanelBuzzAction = findViewById(R.id.btnPanelBuzzAction);
 
-        // 页面2：班级事务
+        // 页面2
         pageAffairsLayout = findViewById(R.id.pageAffairsLayout);
         tvAffairsSummary = findViewById(R.id.tvAffairsSummary);
         btnPublishAffair = findViewById(R.id.btnPublishAffair);
+        btnFilterNotice = findViewById(R.id.btnFilterNotice);
+        btnFilterHomework = findViewById(R.id.btnFilterHomework);
         rvAffairs = findViewById(R.id.rvAffairs);
         tvEmptyAffairs = findViewById(R.id.tvEmptyAffairs);
 
-        // 页面3：个人中心
+        // 页面3
         layoutProfileContainer = findViewById(R.id.layoutProfileContainer);
         ivUserAvatar = findViewById(R.id.ivUserAvatar);
         tvProfileNickname = findViewById(R.id.tvProfileNickname);
         tvProfileStatus = findViewById(R.id.tvProfileStatus);
+        btnProfileReconnect = findViewById(R.id.btnProfileReconnect);
         btnEditProfileName = findViewById(R.id.btnEditProfileName);
         btnSettings = findViewById(R.id.btnSettings);
 
-        // 底部四个 Tab 键
+        // 底部四个 Tab 导航
         btnTabUsers = findViewById(R.id.btnTabUsers);
         btnTabChat = findViewById(R.id.btnTabChat);
         btnTabAffairs = findViewById(R.id.btnTabAffairs);
@@ -276,21 +308,18 @@ public class MainActivity extends AppCompatActivity {
         recyclerViewChat.setLayoutManager(chatLayoutManager);
         recyclerViewChat.setAdapter(chatAdapter);
 
-        // 花名册列表
         rosterUserList = new ArrayList<>();
-        onlineUserDisplayList = new ArrayList<>();
-        userListAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, onlineUserDisplayList);
+        userListAdapter = new RosterAdapter(this, rosterUserList);
         lvOnlineUsers.setAdapter(userListAdapter);
 
-        // 互动房间列表
         gameRoomDisplayList = new ArrayList<>();
         gameRoomIdList = new ArrayList<>();
         gameRoomAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, gameRoomDisplayList);
         lvGameRooms.setAdapter(gameRoomAdapter);
 
-        // 班级事务列表与适配器
-        affairList = new ArrayList<>();
-        affairsAdapter = new AffairsAdapter(affairList, myNickname, myRole, new AffairsAdapter.OnAffairActionListener() {
+        allAffairList = new ArrayList<>();
+        displayAffairList = new ArrayList<>();
+        affairsAdapter = new AffairsAdapter(displayAffairList, myNickname, myRole, new AffairsAdapter.OnAffairActionListener() {
             @Override
             public void onConfirm(String affairId) {
                 sendConfirmAffair(affairId);
@@ -306,12 +335,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initListeners() {
-        btnReconnect.setOnClickListener(v -> {
+        // 个人中心重连按钮
+        btnProfileReconnect.setOnClickListener(v -> {
             reconnectHandler.removeCallbacks(reconnectRunnable);
             connectWebSocket();
+            Toast.makeText(this, "正在重新连接中枢...", Toast.LENGTH_SHORT).show();
         });
 
-        // 教师长按标题栏可切换全员禁言
+        // 仿 QQ “+” 号抽屉折叠展开
+        btnToggleMorePanel.setOnClickListener(v -> {
+            if (layoutMorePanel.getVisibility() == View.VISIBLE) {
+                layoutMorePanel.setVisibility(View.GONE);
+                btnToggleMorePanel.setText("＋");
+            } else {
+                layoutMorePanel.setVisibility(View.VISIBLE);
+                btnToggleMorePanel.setText("✕");
+            }
+        });
+
+        // 抽屉内发图
+        btnPickImage.setOnClickListener(v -> {
+            layoutMorePanel.setVisibility(View.GONE);
+            btnToggleMorePanel.setText("＋");
+            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            chatImagePickerLauncher.launch(intent);
+        });
+
+        // 抽屉内教师发起抢答
+        btnPanelBuzzAction.setOnClickListener(v -> {
+            layoutMorePanel.setVisibility(View.GONE);
+            btnToggleMorePanel.setText("＋");
+            showInitiateBuzzDialog();
+        });
+
+        // 班级事务分栏按钮监听
+        btnFilterNotice.setOnClickListener(v -> switchAffairTab("notice"));
+        btnFilterHomework.setOnClickListener(v -> switchAffairTab("homework"));
+
+        // 教师长按标题切换全员禁言
         tvTitle.setOnLongClickListener(v -> {
             if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
                 boolean targetMute = !isGlobalMuted;
@@ -346,11 +407,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        btnPickImage.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            chatImagePickerLauncher.launch(intent);
-        });
-
         btnCreateGameRoom.setOnClickListener(v -> showCreateRoomDialog());
 
         lvGameRooms.setOnItemClickListener((parent, view, position, id) -> {
@@ -362,7 +418,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 教师点击花名册学生弹出管理面板
         lvOnlineUsers.setOnItemClickListener((parent, view, position, id) -> {
             if (position >= 0 && position < rosterUserList.size()) {
                 RosterUser targetUser = rosterUserList.get(position);
@@ -374,9 +429,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 教师发布新事务
         btnPublishAffair.setOnClickListener(v -> showPublishAffairDialog());
-
         btnEditProfileName.setOnClickListener(v -> showChangeNameDialog());
 
         btnSettings.setOnClickListener(v -> {
@@ -389,7 +442,6 @@ public class MainActivity extends AppCompatActivity {
             avatarPickerLauncher.launch(intent);
         });
 
-        // 导航切换
         btnTabUsers.setOnClickListener(v -> switchPage(0));
         btnTabChat.setOnClickListener(v -> switchPage(1));
         btnTabAffairs.setOnClickListener(v -> switchPage(2));
@@ -397,13 +449,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void switchPage(int pageIndex) {
-        layoutUserListContainer.setVisibility(pageIndex == 0 ? View.VISIBLE : View.GONE);
-        recyclerViewChat.setVisibility(pageIndex == 1 ? View.VISIBLE : View.GONE);
-        layoutInputBar.setVisibility(pageIndex == 1 ? View.VISIBLE : View.GONE);
+        // 彻底切换四大子页面的外层容器，杜绝图层遮挡导致全白
+        if (layoutUserListContainer != null) {
+            layoutUserListContainer.setVisibility(pageIndex == 0 ? View.VISIBLE : View.GONE);
+        }
+        if (pageChatLayout != null) {
+            pageChatLayout.setVisibility(pageIndex == 1 ? View.VISIBLE : View.GONE);
+        }
         if (pageAffairsLayout != null) {
             pageAffairsLayout.setVisibility(pageIndex == 2 ? View.VISIBLE : View.GONE);
         }
-        layoutProfileContainer.setVisibility(pageIndex == 3 ? View.VISIBLE : View.GONE);
+        if (layoutProfileContainer != null) {
+            layoutProfileContainer.setVisibility(pageIndex == 3 ? View.VISIBLE : View.GONE);
+        }
+
+        // 切出讨论页时折叠抽屉
+        if (layoutMorePanel != null && pageIndex != 1) {
+            layoutMorePanel.setVisibility(View.GONE);
+            if (btnToggleMorePanel != null) btnToggleMorePanel.setText("＋");
+        }
 
         int activeColor = Color.parseColor("#1E88E5");
         int inactiveColor = Color.parseColor("#E0E0E0");
@@ -421,6 +485,174 @@ public class MainActivity extends AppCompatActivity {
         btn.setTextColor(isSelected ? actText : inactText);
     }
 
+    // ---------------- 班级事务/作业分类过滤 ----------------
+
+    private void switchAffairTab(String category) {
+        currentAffairFilter = category;
+        boolean isNotice = "notice".equalsIgnoreCase(category);
+
+        int actBg = Color.parseColor("#1E88E5");
+        int inactBg = Color.parseColor("#E5E7EB");
+        int actText = Color.WHITE;
+        int inactText = Color.parseColor("#4B5563");
+
+        ViewCompat.setBackgroundTintList(btnFilterNotice, ColorStateList.valueOf(isNotice ? actBg : inactBg));
+        btnFilterNotice.setTextColor(isNotice ? actText : inactText);
+
+        ViewCompat.setBackgroundTintList(btnFilterHomework, ColorStateList.valueOf(!isNotice ? actBg : inactBg));
+        btnFilterHomework.setTextColor(!isNotice ? actText : inactText);
+
+        applyAffairFilter();
+    }
+
+    private void applyAffairFilter() {
+        displayAffairList.clear();
+        for (AffairItem item : allAffairList) {
+            if (currentAffairFilter.equalsIgnoreCase(item.getType())) {
+                displayAffairList.add(item);
+            }
+        }
+        if (affairsAdapter != null) {
+            affairsAdapter.notifyDataSetChanged();
+        }
+        if (tvEmptyAffairs != null) {
+            tvEmptyAffairs.setText("notice".equals(currentAffairFilter) ? "暂无班级通知" : "暂无随堂作业");
+            tvEmptyAffairs.setVisibility(displayAffairList.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    // ---------------- 课堂抢答模块 ----------------
+
+    private void showInitiateBuzzDialog() {
+        final EditText input = new EditText(this);
+        input.setHint("输入本次抢答题目或环节说明");
+        input.setText("随堂第 1 题快速抢答");
+
+        new AlertDialog.Builder(this)
+                .setTitle("发起到全班设备")
+                .setView(input)
+                .setPositiveButton("全员开始抢答", (dialog, which) -> {
+                    String title = input.getText().toString().trim();
+                    if (webSocket != null && isConnected) {
+                        try {
+                            JSONObject json = new JSONObject();
+                            json.put("type", "start_buzz");
+                            json.put("title", TextUtils.isEmpty(title) ? "随堂抢答环节" : title);
+                            webSocket.send(json.toString());
+                        } catch (JSONException ignored) {}
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showBuzzerWindow(String title) {
+        if (isFinishing() || isDestroyed) return;
+
+        if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
+            currentBuzzerDialog.dismiss();
+        }
+
+        currentBuzzerDialog = new Dialog(this);
+        currentBuzzerDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_buzzer, null);
+        currentBuzzerDialog.setContentView(dialogView);
+
+        if (currentBuzzerDialog.getWindow() != null) {
+            currentBuzzerDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            currentBuzzerDialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        currentBuzzerDialog.setCancelable(false);
+
+        TextView tvBuzzerTitle = dialogView.findViewById(R.id.tvBuzzerTitle);
+        tvBuzzerStatus = dialogView.findViewById(R.id.tvBuzzerStatus);
+        btnBuzzAction = dialogView.findViewById(R.id.btnBuzzAction);
+        layoutBuzzResult = dialogView.findViewById(R.id.layoutBuzzResult);
+        tvWinnerName = dialogView.findViewById(R.id.tvWinnerName);
+        tvCostTime = dialogView.findViewById(R.id.tvCostTime);
+        Button btnDismissBuzzer = dialogView.findViewById(R.id.btnDismissBuzzer);
+
+        tvBuzzerTitle.setText(title);
+        tvBuzzerStatus.setText("抢答进行中！全员拼手速！");
+        layoutBuzzResult.setVisibility(View.GONE);
+        btnBuzzAction.setVisibility(View.VISIBLE);
+        btnBuzzAction.setEnabled(true);
+        btnBuzzAction.setText("抢！");
+
+        btnBuzzAction.setOnClickListener(v -> {
+            triggerHapticFeedback(80);
+            btnBuzzAction.setEnabled(false);
+            btnBuzzAction.setText("已按！");
+            tvBuzzerStatus.setText("正在裁决谁是第一名...");
+
+            if (webSocket != null && isConnected) {
+                try {
+                    JSONObject json = new JSONObject();
+                    json.put("type", "submit_buzz");
+                    webSocket.send(json.toString());
+                } catch (JSONException ignored) {}
+            }
+        });
+
+        btnDismissBuzzer.setOnClickListener(v -> {
+            if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
+                try {
+                    JSONObject json = new JSONObject();
+                    json.put("type", "stop_buzz");
+                    webSocket.send(json.toString());
+                } catch (JSONException ignored) {}
+            }
+            if (currentBuzzerDialog != null) {
+                currentBuzzerDialog.dismiss();
+            }
+        });
+
+        triggerHapticFeedback(120);
+        currentBuzzerDialog.show();
+    }
+
+    private void renderBuzzResult(String winner, int costMs) {
+        if (currentBuzzerDialog == null || !currentBuzzerDialog.isShowing()) {
+            showBuzzerWindow("随堂抢答");
+        }
+
+        if (btnBuzzAction != null) {
+            btnBuzzAction.setVisibility(View.GONE);
+        }
+        if (layoutBuzzResult != null) {
+            layoutBuzzResult.setVisibility(View.VISIBLE);
+        }
+        if (tvWinnerName != null) {
+            tvWinnerName.setText(winner);
+        }
+        if (tvCostTime != null) {
+            tvCostTime.setText("用时：" + costMs + " ms");
+        }
+        if (tvBuzzerStatus != null) {
+            if (winner.equals(myNickname)) {
+                tvBuzzerStatus.setText("🎉 太强了！你抢到了第一名！");
+                triggerHapticFeedback(300);
+            } else {
+                tvBuzzerStatus.setText("手慢了一步，恭喜【" + winner + "】！");
+            }
+        }
+    }
+
+    private void triggerHapticFeedback(long ms) {
+        try {
+            Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
+                } else {
+                    vibrator.vibrate(ms);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // ---------------- 班级事务辅助 ----------------
+
     private void showPublishAffairDialog() {
         LinearLayout dialogLayout = new LinearLayout(this);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
@@ -430,9 +662,10 @@ public class MainActivity extends AppCompatActivity {
         rgType.setOrientation(RadioGroup.HORIZONTAL);
         final RadioButton rbNotice = new RadioButton(this);
         rbNotice.setText("班级通知");
-        rbNotice.setChecked(true);
+        rbNotice.setChecked("notice".equalsIgnoreCase(currentAffairFilter));
         final RadioButton rbHomework = new RadioButton(this);
         rbHomework.setText("随堂作业");
+        rbHomework.setChecked("homework".equalsIgnoreCase(currentAffairFilter));
         rgType.addView(rbNotice);
         rgType.addView(rbHomework);
         dialogLayout.addView(rgType);
@@ -671,11 +904,15 @@ public class MainActivity extends AppCompatActivity {
         String displayName = TextUtils.isEmpty(myNickname) ? "未设置姓名" : myNickname;
         tvProfileNickname.setText("姓名：" + displayName);
         String connectionInfo = isConnected ? "已连接到教学中枢" : "正在连接...";
-        String roleText = "teacher".equalsIgnoreCase(myRole) ? "教师端 (管理权限)" : "学生端 (普通学员)";
+        boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
+        String roleText = isTeacher ? "教师端 (管理权限)" : "学生端 (普通学员)";
         tvProfileStatus.setText("教师中枢节点：" + currentServerIp + ":8000\n当前权限：" + roleText + "\n网络状态：" + connectionInfo);
 
         if (btnPublishAffair != null) {
-            btnPublishAffair.setVisibility("teacher".equalsIgnoreCase(myRole) ? View.VISIBLE : View.GONE);
+            btnPublishAffair.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
+        }
+        if (itemPanelStartBuzz != null) {
+            itemPanelStartBuzz.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         }
 
         if (!TextUtils.isEmpty(myAvatarBase64)) {
@@ -825,7 +1062,26 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
 
-                        // 1. 服务端下发的全量课堂初始包
+                        if ("buzz_started".equals(type)) {
+                            String bTitle = json.optString("title", "快速抢答");
+                            showBuzzerWindow(bTitle);
+                            return;
+                        }
+
+                        if ("buzz_result".equals(type)) {
+                            String winner = json.optString("winner");
+                            int costMs = json.optInt("cost_ms", 100);
+                            renderBuzzResult(winner, costMs);
+                            return;
+                        }
+
+                        if ("buzz_stopped".equals(type)) {
+                            if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
+                                currentBuzzerDialog.dismiss();
+                            }
+                            return;
+                        }
+
                         if ("init_classroom_state".equals(type)) {
                             String verifiedRole = json.optString("my_verified_role", "");
                             if (!TextUtils.isEmpty(verifiedRole)) {
@@ -837,7 +1093,10 @@ public class MainActivity extends AppCompatActivity {
                             isGlobalMuted = json.optBoolean("is_global_muted", false);
                             updateMuteUI();
 
-                            // 历史消息
+                            if (json.optBoolean("buzz_active", false)) {
+                                showBuzzerWindow("进行中的抢答");
+                            }
+
                             JSONArray historyArray = json.optJSONArray("messages");
                             messageList.clear();
                             if (historyArray != null) {
@@ -853,11 +1112,9 @@ public class MainActivity extends AppCompatActivity {
                                 recyclerViewChat.scrollToPosition(messageList.size() - 1);
                             }
 
-                            // 花名册
                             JSONArray rosterArr = json.optJSONArray("roster");
                             parseAndRefreshRoster(rosterArr);
 
-                            // 事务列表
                             JSONArray affairsArr = json.optJSONArray("affairs");
                             parseAndRefreshAffairs(affairsArr);
 
@@ -945,7 +1202,6 @@ public class MainActivity extends AppCompatActivity {
     private void parseAndRefreshRoster(JSONArray rosterArr) {
         if (rosterArr == null) return;
         rosterUserList.clear();
-        onlineUserDisplayList.clear();
         int onlineCount = 0;
 
         for (int i = 0; i < rosterArr.length(); i++) {
@@ -953,16 +1209,12 @@ public class MainActivity extends AppCompatActivity {
             if (u != null) {
                 String uName = u.optString("name");
                 String uRole = u.optString("role", "student");
+                String uAvatar = u.optString("avatar", "");
                 boolean uOnline = u.optBoolean("is_online", false);
                 boolean uMuted = u.optBoolean("is_muted", false);
                 if (uOnline) onlineCount++;
 
-                rosterUserList.add(new RosterUser(uName, uRole, uOnline, uMuted));
-
-                String statusStr = uOnline ? "[在线]" : "[离线]";
-                String roleStr = "teacher".equals(uRole) ? "教师" : ("monitor".equals(uRole) ? "班长" : "学生");
-                String muteStr = uMuted ? " [已禁言]" : "";
-                onlineUserDisplayList.add(statusStr + " " + uName + " (" + roleStr + ")" + muteStr);
+                rosterUserList.add(new RosterUser(uName, uRole, uAvatar, uOnline, uMuted));
             }
         }
         userListAdapter.notifyDataSetChanged();
@@ -971,7 +1223,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void parseAndRefreshAffairs(JSONArray affairsArr) {
         if (affairsArr == null) return;
-        affairList.clear();
+        allAffairList.clear();
 
         for (int i = 0; i < affairsArr.length(); i++) {
             JSONObject a = affairsArr.optJSONObject(i);
@@ -992,29 +1244,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                affairList.add(new AffairItem(aId, aTitle, aContent, aType, aPublisher, aTime, aCount, confirmedList));
+                allAffairList.add(new AffairItem(aId, aTitle, aContent, aType, aPublisher, aTime, aCount, confirmedList));
             }
         }
 
-        if (affairsAdapter != null) {
-            affairsAdapter = new AffairsAdapter(affairList, myNickname, myRole, new AffairsAdapter.OnAffairActionListener() {
-                @Override
-                public void onConfirm(String affairId) {
-                    sendConfirmAffair(affairId);
-                }
-
-                @Override
-                public void onViewConfirmedList(AffairItem item) {
-                    showConfirmedStudentsDialog(item);
-                }
-            });
-            rvAffairs.setAdapter(affairsAdapter);
-            affairsAdapter.notifyDataSetChanged();
-        }
-
-        if (tvEmptyAffairs != null) {
-            tvEmptyAffairs.setVisibility(affairList.isEmpty() ? View.VISIBLE : View.GONE);
-        }
+        applyAffairFilter();
     }
 
     private void scheduleReconnect() {
@@ -1057,21 +1291,25 @@ public class MainActivity extends AppCompatActivity {
         isConnected = false;
         reconnectHandler.removeCallbacks(reconnectRunnable);
         GameSocketBridge.clearListener();
+        if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
+            currentBuzzerDialog.dismiss();
+        }
         if (webSocket != null) {
             webSocket.close(1000, "退出应用");
         }
     }
 
-    // 内部类：花名册数据结构
     static class RosterUser {
         String name;
         String role;
+        String avatar;
         boolean isOnline;
         boolean isMuted;
 
-        RosterUser(String name, String role, boolean isOnline, boolean isMuted) {
+        RosterUser(String name, String role, String avatar, boolean isOnline, boolean isMuted) {
             this.name = name;
             this.role = role;
+            this.avatar = avatar;
             this.isOnline = isOnline;
             this.isMuted = isMuted;
         }

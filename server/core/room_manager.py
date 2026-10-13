@@ -13,7 +13,7 @@ class ClassAffair:
         self.affair_type = affair_type  # notice(公告) / homework(作业)
         self.publisher = publisher
         self.timestamp = int(time.time() * 1000)
-        self.confirmed_students: Set[str] = set()  # 点击了“已确认”的学生姓名集合
+        self.confirmed_students: Set[str] = set()
 
     def to_dict(self) -> dict:
         return {
@@ -43,13 +43,19 @@ class RoomManager:
             "lobby": RoomInfo("lobby", "公共讨论大厅", "系统", game_type="rps")
         }
         
-        # 1. 核心：全局花名册字典 { "用户名/学号": { "role", "avatar", "is_online", "is_muted", "last_seen" } }
-        self.roster: Dict[str, dict] = {}
+        # 1. 服务端原生注入教师中枢常驻节点，防止学生端显示无教师
+        self.roster: Dict[str, dict] = {
+            "任课教师 (教学中枢)": {
+                "name": "任课教师 (教学中枢)",
+                "role": "teacher",
+                "avatar": "",
+                "is_online": True,
+                "is_muted": False,
+                "last_seen": int(time.time() * 1000)
+            }
+        }
         
-        # 2. 班级事务列表
         self.affairs: List[ClassAffair] = []
-        
-        # 3. 全局全员禁言开关
         self.is_global_muted: bool = False
 
     def register_user(self, name: str, role: str, avatar: str = "") -> dict:
@@ -65,19 +71,20 @@ class RoomManager:
             }
         else:
             self.roster[name]["is_online"] = True
+            self.roster[name]["role"] = role
             self.roster[name]["last_seen"] = int(time.time() * 1000)
             if avatar:
                 self.roster[name]["avatar"] = avatar
         return self.roster[name]
 
     def set_user_offline(self, name: str):
-        """用户断开连接时，保留记录，仅标记为离线"""
-        if name in self.roster:
+        """用户断开连接时，若不是教师中枢，则标为离线"""
+        if name in self.roster and name != "任课教师 (教学中枢)":
             self.roster[name]["is_online"] = False
             self.roster[name]["last_seen"] = int(time.time() * 1000)
 
     def get_roster_list(self) -> List[dict]:
-        """按在线状态优先、角色优先级排序输出花名册"""
+        """在线优先、教师优先、班长次之、学生在后排序"""
         def sort_key(item):
             role_weight = {"teacher": 0, "monitor": 1, "student": 2}.get(item["role"], 3)
             return (0 if item["is_online"] else 1, role_weight, item["name"])

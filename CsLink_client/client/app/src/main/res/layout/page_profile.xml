@@ -4,67 +4,34 @@
     android:id="@+id/layoutProfileContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
     android:orientation="vertical"
-    android:padding="20dp"
-    android:visibility="gone">
+    android:background="#F4F6F9"
+    android:padding="16dp">
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:text="个人中心"
-            android:textColor="#1F2937"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnSettings"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:backgroundTint="#F0F2F5"
-            android:text="设置"
-            android:textColor="#374151"
-            android:textSize="13sp" />
-    </RelativeLayout>
-
+    <!-- 1. 用户头像与姓名卡片 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="#FFFFFF"
         android:orientation="vertical"
+        android:padding="20dp"
         android:gravity="center_horizontal"
-        android:layout_marginTop="24dp">
+        android:elevation="2dp">
 
         <ImageView
             android:id="@+id/ivUserAvatar"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
-            android:background="#E3F2FD"
-            android:padding="16dp"
-            android:src="@mipmap/ic_launcher_round"
-            android:contentDescription="头像预览" />
-
-        <TextView
-            android:id="@+id/tvChangeAvatarHint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="点击更换头像"
-            android:textColor="#1E88E5"
-            android:textSize="13sp" />
+            android:layout_width="84dp"
+            android:layout_height="84dp"
+            android:scaleType="centerCrop"
+            android:src="@mipmap/ic_launcher"
+            android:background="#E0E0E0" />
 
         <TextView
             android:id="@+id/tvProfileNickname"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="昵称：未设置"
+            android:layout_marginTop="12dp"
+            android:text="姓名：未设置姓名"
             android:textColor="#1F2937"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -72,26 +39,63 @@
         <Button
             android:id="@+id/btnEditProfileName"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
-            android:layout_marginTop="12dp"
-            android:backgroundTint="#1E88E5"
-            android:text="修改昵称"
-            android:textSize="13sp" />
+            android:layout_height="36dp"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="#F3F4F6"
+            android:text="修改姓名 / 学号"
+            android:textColor="#374151"
+            android:textSize="12sp" />
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginBottom="16dp"
-        android:background="#E0E4E8" />
-
+    <!-- 2. 网络中枢与重连卡片 (重连按钮放置于此) -->
     <TextView
-        android:id="@+id/tvProfileStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="8dp"
+        android:text="教学中枢连接"
+        android:textColor="#6B7280"
+        android:textSize="13sp" />
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="局域网节点：192.168.137.1:8000\n状态：在线已同步"
-        android:textColor="#6B7280"
-        android:lineSpacingExtra="4dp"
-        android:textSize="13sp" />
+        android:background="#FFFFFF"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:elevation="2dp">
+
+        <TextView
+            android:id="@+id/tvProfileStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="教师中枢节点：192.168.137.1:8000\n当前权限：学生端 (普通学员)\n网络状态：连接中..."
+            android:textColor="#4B5563"
+            android:textSize="13sp"
+            android:lineSpacingExtra="4dp" />
+
+        <!-- 显眼的重连按钮 -->
+        <Button
+            android:id="@+id/btnProfileReconnect"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="14dp"
+            android:backgroundTint="#10B981"
+            android:text="⚡ 立即重新连接中枢"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 3. 高级设置入口 -->
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="20dp"
+        android:backgroundTint="#1E88E5"
+        android:text="进入系统网络与特权设置"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp" />
+
 </LinearLayout>

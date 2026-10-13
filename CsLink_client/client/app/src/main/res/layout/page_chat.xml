@@ -1,61 +1,142 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/pageChatLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F4F6F9">
 
-    <!-- 大厅消息滚动列表 -->
+    <!-- 聊天记录列表 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewChat"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:padding="8dp"
-        android:visibility="visible"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/layoutInputBar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
 
-    <!-- 消息发送输入栏 -->
+    <!-- 底部输入栏 -->
     <LinearLayout
         android:id="@+id/layoutInputBar"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#FFFFFF"
-        android:orientation="horizontal"
+        android:elevation="4dp"
         android:gravity="center_vertical"
-        android:padding="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <Button
-            android:id="@+id/btnPickImage"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:backgroundTint="#F0F2F5"
-            android:text="发送图片"
-            android:textColor="#1E88E5"
-            android:textSize="12sp" />
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp">
 
         <EditText
             android:id="@+id/etMessage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:background="@null"
-            android:hint="输入聊天内容..."
-            android:padding="10dp"
-            android:textSize="15sp" />
+            android:background="@android:color/transparent"
+            android:hint="输入随堂讨论内容..."
+            android:maxLines="3"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:text="发送" />
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="#1E88E5"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="发送"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <!-- QQ风格展开更多“+”号按钮 -->
+        <Button
+            android:id="@+id/btnToggleMorePanel"
+            android:layout_width="38dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="#E5E7EB"
+            android:text="＋"
+            android:textColor="#374151"
+            android:textSize="18sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- 仿 QQ 扩展功能卡片面板 (默认 GONE，点击“＋”展开) -->
+    <LinearLayout
+        android:id="@+id/layoutMorePanel"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="#F9FAFB"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone">
+
+        <!-- 功能 1：发送图片 -->
+        <LinearLayout
+            android:id="@+id/itemPanelSendImage"
+            android:layout_width="72dp"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true">
+
+            <Button
+                android:id="@+id/btnPickImage"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:backgroundTint="#E0F2FE"
+                android:text="🖼"
+                android:textColor="#0369A1"
+                android:textSize="20sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="相册图片"
+                android:textColor="#4B5563"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- 功能 2：课堂抢答 (教师特权) -->
+        <LinearLayout
+            android:id="@+id/itemPanelStartBuzz"
+            android:layout_width="72dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="16dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnPanelBuzzAction"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:backgroundTint="#FEE2E2"
+                android:text="⚡"
+                android:textColor="#DC2626"
+                android:textSize="20sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="发起抢答"
+                android:textColor="#4B5563"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>
