@@ -2,6 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from core.room_manager import manager
 import json
 import time
+import random
 
 router = APIRouter()
 TEACHER_AUTH_TOKEN = "teacher888"
@@ -131,7 +132,49 @@ async def websocket_chat_endpoint(
                     })
                     continue
 
-                # 单人管理与事务发布保持原逻辑
+                # 新增：随机点名（天选之子）
+                elif msg_type == "random_pick":
+                    # 优先从当前在线的学生/班长中抽取
+                    online_students = [
+                        u["name"] for u in manager.roster.values()
+                        if u.get("is_online") and u.get("role") != "teacher"
+                    ]
+                    # 若当前无在线学生（如老师单机调试），则从所有非教师名册或全员中兜底抽取
+                    if not online_students:
+                        online_students = [
+                            u["name"] for u in manager.roster.values()
+                            if u.get("role") != "teacher"
+                        ]
+                    if not online_students:
+                        online_students = list(manager.roster.keys())
+
+                    winner_name = random.choice(online_students) if online_students else "暂无学生"
+
+                    # 广播点名动画数据包
+                    pick_payload = {
+                        "type": "random_pick_result",
+                        "winner": winner_name,
+                        "candidates": online_students,
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    await broadcast_to_all(pick_payload)
+
+                    # 同步写入公屏系统消息
+                    notice_msg = {
+                        "type": "system",
+                        "sender": "系统",
+                        "role": "teacher",
+                        "avatar": "",
+                        "content": f"随机点名结果揭晓：请【{winner_name}】同学回答问题！",
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    current_room.history.append(notice_msg)
+                    if len(current_room.history) > 50:
+                        current_room.history.pop(0)
+                    await broadcast_to_all(notice_msg)
+                    continue
+
+                # 单人管理与事务发布
                 elif msg_type == "admin_manage_student":
                     target_student = data.get("target_name")
                     operation = data.get("operation")
@@ -167,7 +210,6 @@ async def websocket_chat_endpoint(
             # ---------------- 学生提交抢答 ----------------
             if msg_type == "submit_buzz":
                 if buzz_session.submit(actual_name):
-                    # 抢答成功产生胜者，广播喜报
                     result_payload = {
                         "type": "buzz_result",
                         "winner": buzz_session.winner,
@@ -177,7 +219,6 @@ async def websocket_chat_endpoint(
                     }
                     await broadcast_to_all(result_payload)
 
-                    # 自动插入公屏公告记录
                     notice_msg = {
                         "type": "system",
                         "sender": "系统",

@@ -81,7 +81,7 @@
             android:layout_height="40dp"
             android:layout_marginTop="14dp"
             android:backgroundTint="#10B981"
-            android:text="⚡ 立即重新连接中枢"
+            android:text="立即重新连接中枢"
             android:textColor="#FFFFFF"
             android:textSize="13sp"
             android:textStyle="bold" />

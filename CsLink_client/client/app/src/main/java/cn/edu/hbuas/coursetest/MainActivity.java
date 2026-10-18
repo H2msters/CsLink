@@ -49,7 +49,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import okhttp3.OkHttpClient;
@@ -78,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
     private ListView lvGameRooms;
     private ListView lvOnlineUsers;
 
-    // 页面1：随堂讨论与 QQ 风格更多面板
+    // 页面1：随堂讨论与扩展更多面板
     private View pageChatLayout;
     private RecyclerView recyclerViewChat;
     private LinearLayoutManager chatLayoutManager;
@@ -90,6 +89,8 @@ public class MainActivity extends AppCompatActivity {
     private Button btnPickImage;
     private LinearLayout itemPanelStartBuzz;
     private Button btnPanelBuzzAction;
+    private LinearLayout itemPanelRandomPick;
+    private Button btnPanelRandomPick;
 
     // 页面2：班级事务与分栏
     private View pageAffairsLayout;
@@ -125,20 +126,20 @@ public class MainActivity extends AppCompatActivity {
     private ChatAdapter chatAdapter;
 
     private List<RosterUser> rosterUserList;
-
     private RosterAdapter userListAdapter;
 
     private List<String> gameRoomDisplayList;
     private List<String> gameRoomIdList;
     private ArrayAdapter<String> gameRoomAdapter;
 
-    // 抢答弹窗组件
+    // 抢答与随机点名弹窗组件
     private Dialog currentBuzzerDialog;
     private TextView tvBuzzerStatus;
     private Button btnBuzzAction;
     private LinearLayout layoutBuzzResult;
     private TextView tvWinnerName;
     private TextView tvCostTime;
+    private Dialog currentPickDialog;
 
     private OkHttpClient httpClient;
     private WebSocket webSocket;
@@ -271,6 +272,8 @@ public class MainActivity extends AppCompatActivity {
         btnPickImage = findViewById(R.id.btnPickImage);
         itemPanelStartBuzz = findViewById(R.id.itemPanelStartBuzz);
         btnPanelBuzzAction = findViewById(R.id.btnPanelBuzzAction);
+        itemPanelRandomPick = findViewById(R.id.itemPanelRandomPick);
+        btnPanelRandomPick = findViewById(R.id.btnPanelRandomPick);
 
         // 页面2
         pageAffairsLayout = findViewById(R.id.pageAffairsLayout);
@@ -342,21 +345,21 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "正在重新连接中枢...", Toast.LENGTH_SHORT).show();
         });
 
-        // 仿 QQ “+” 号抽屉折叠展开
+        // 抽屉折叠与展开
         btnToggleMorePanel.setOnClickListener(v -> {
             if (layoutMorePanel.getVisibility() == View.VISIBLE) {
                 layoutMorePanel.setVisibility(View.GONE);
-                btnToggleMorePanel.setText("＋");
+                btnToggleMorePanel.setText("+");
             } else {
                 layoutMorePanel.setVisibility(View.VISIBLE);
-                btnToggleMorePanel.setText("✕");
+                btnToggleMorePanel.setText("收起");
             }
         });
 
         // 抽屉内发图
         btnPickImage.setOnClickListener(v -> {
             layoutMorePanel.setVisibility(View.GONE);
-            btnToggleMorePanel.setText("＋");
+            btnToggleMorePanel.setText("+");
             Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             chatImagePickerLauncher.launch(intent);
         });
@@ -364,9 +367,24 @@ public class MainActivity extends AppCompatActivity {
         // 抽屉内教师发起抢答
         btnPanelBuzzAction.setOnClickListener(v -> {
             layoutMorePanel.setVisibility(View.GONE);
-            btnToggleMorePanel.setText("＋");
+            btnToggleMorePanel.setText("+");
             showInitiateBuzzDialog();
         });
+
+        // 抽屉内教师发起随机点名
+        if (btnPanelRandomPick != null) {
+            btnPanelRandomPick.setOnClickListener(v -> {
+                layoutMorePanel.setVisibility(View.GONE);
+                btnToggleMorePanel.setText("+");
+                if (webSocket != null && isConnected) {
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "random_pick");
+                        webSocket.send(json.toString());
+                    } catch (JSONException ignored) {}
+                }
+            });
+        }
 
         // 班级事务分栏按钮监听
         btnFilterNotice.setOnClickListener(v -> switchAffairTab("notice"));
@@ -449,7 +467,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void switchPage(int pageIndex) {
-        // 彻底切换四大子页面的外层容器，杜绝图层遮挡导致全白
         if (layoutUserListContainer != null) {
             layoutUserListContainer.setVisibility(pageIndex == 0 ? View.VISIBLE : View.GONE);
         }
@@ -466,7 +483,7 @@ public class MainActivity extends AppCompatActivity {
         // 切出讨论页时折叠抽屉
         if (layoutMorePanel != null && pageIndex != 1) {
             layoutMorePanel.setVisibility(View.GONE);
-            if (btnToggleMorePanel != null) btnToggleMorePanel.setText("＋");
+            if (btnToggleMorePanel != null) btnToggleMorePanel.setText("+");
         }
 
         int activeColor = Color.parseColor("#1E88E5");
@@ -521,7 +538,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ---------------- 课堂抢答模块 ----------------
+    // ---------------- 课堂抢答与随机点名模块 ----------------
 
     private void showInitiateBuzzDialog() {
         final EditText input = new EditText(this);
@@ -573,17 +590,17 @@ public class MainActivity extends AppCompatActivity {
         Button btnDismissBuzzer = dialogView.findViewById(R.id.btnDismissBuzzer);
 
         tvBuzzerTitle.setText(title);
-        tvBuzzerStatus.setText("抢答进行中！全员拼手速！");
+        tvBuzzerStatus.setText("抢答进行中，点击下方按钮参与抢答");
         layoutBuzzResult.setVisibility(View.GONE);
         btnBuzzAction.setVisibility(View.VISIBLE);
         btnBuzzAction.setEnabled(true);
-        btnBuzzAction.setText("抢！");
+        btnBuzzAction.setText("抢答");
 
         btnBuzzAction.setOnClickListener(v -> {
             triggerHapticFeedback(80);
             btnBuzzAction.setEnabled(false);
-            btnBuzzAction.setText("已按！");
-            tvBuzzerStatus.setText("正在裁决谁是第一名...");
+            btnBuzzAction.setText("已提交");
+            tvBuzzerStatus.setText("正在裁决第一名...");
 
             if (webSocket != null && isConnected) {
                 try {
@@ -630,12 +647,67 @@ public class MainActivity extends AppCompatActivity {
         }
         if (tvBuzzerStatus != null) {
             if (winner.equals(myNickname)) {
-                tvBuzzerStatus.setText("🎉 太强了！你抢到了第一名！");
+                tvBuzzerStatus.setText("恭喜，你获得了本次抢答第一名");
                 triggerHapticFeedback(300);
             } else {
-                tvBuzzerStatus.setText("手慢了一步，恭喜【" + winner + "】！");
+                tvBuzzerStatus.setText("本次抢答第一名：" + winner);
             }
         }
+    }
+
+    private void showRandomPickAnimationDialog(String finalWinner, List<String> candidates) {
+        if (isFinishing() || isDestroyed) return;
+
+        if (currentPickDialog != null && currentPickDialog.isShowing()) {
+            currentPickDialog.dismiss();
+        }
+
+        currentPickDialog = new Dialog(this);
+        currentPickDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_random_pick, null);
+        currentPickDialog.setContentView(view);
+
+        if (currentPickDialog.getWindow() != null) {
+            currentPickDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            currentPickDialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        TextView tvStatus = view.findViewById(R.id.tvPickStatus);
+        TextView tvRollingName = view.findViewById(R.id.tvPickRollingName);
+        Button btnClose = view.findViewById(R.id.btnClosePickDialog);
+        btnClose.setEnabled(false);
+        btnClose.setOnClickListener(v -> currentPickDialog.dismiss());
+
+        currentPickDialog.show();
+
+        final List<String> pool = (candidates != null && !candidates.isEmpty()) ? candidates : new ArrayList<>();
+        if (pool.isEmpty()) pool.add(finalWinner);
+
+        final Handler animHandler = new Handler(Looper.getMainLooper());
+        final int totalSteps = 15;
+        final int[] currentStep = {0};
+
+        Runnable rollTask = new Runnable() {
+            @Override
+            public void run() {
+                if (currentStep[0] < totalSteps) {
+                    String tempName = pool.get(currentStep[0] % pool.size());
+                    tvRollingName.setText(tempName);
+                    tvRollingName.setTextColor(Color.parseColor("#4B5563"));
+                    currentStep[0]++;
+                    animHandler.postDelayed(this, 80);
+                } else {
+                    tvStatus.setText("抽中结果已揭晓，请以下同学回答：");
+                    tvRollingName.setText(finalWinner);
+                    tvRollingName.setTextColor(Color.parseColor("#6D28D9"));
+                    btnClose.setEnabled(true);
+                    if (finalWinner.equals(myNickname)) {
+                        triggerHapticFeedback(250);
+                    }
+                }
+            }
+        };
+        animHandler.post(rollTask);
     }
 
     private void triggerHapticFeedback(long ms) {
@@ -914,6 +986,9 @@ public class MainActivity extends AppCompatActivity {
         if (itemPanelStartBuzz != null) {
             itemPanelStartBuzz.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         }
+        if (itemPanelRandomPick != null) {
+            itemPanelRandomPick.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
+        }
 
         if (!TextUtils.isEmpty(myAvatarBase64)) {
             try {
@@ -1079,6 +1154,19 @@ public class MainActivity extends AppCompatActivity {
                             if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
                                 currentBuzzerDialog.dismiss();
                             }
+                            return;
+                        }
+
+                        if ("random_pick_result".equals(type)) {
+                            String winner = json.optString("winner", "未知");
+                            JSONArray candArr = json.optJSONArray("candidates");
+                            List<String> candidates = new ArrayList<>();
+                            if (candArr != null) {
+                                for (int i = 0; i < candArr.length(); i++) {
+                                    candidates.add(candArr.optString(i));
+                                }
+                            }
+                            showRandomPickAnimationDialog(winner, candidates);
                             return;
                         }
 
@@ -1293,6 +1381,9 @@ public class MainActivity extends AppCompatActivity {
         GameSocketBridge.clearListener();
         if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
             currentBuzzerDialog.dismiss();
+        }
+        if (currentPickDialog != null && currentPickDialog.isShowing()) {
+            currentPickDialog.dismiss();
         }
         if (webSocket != null) {
             webSocket.close(1000, "退出应用");

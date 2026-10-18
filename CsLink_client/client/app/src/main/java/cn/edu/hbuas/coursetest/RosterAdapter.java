@@ -112,7 +112,6 @@ public class RosterAdapter extends ArrayAdapter<MainActivity.RosterUser> {
 
     private static class ViewHolder {
         ImageView ivAvatar;
-        ..................
         TextView tvName;
         TextView tvMuteBadge;
         TextView tvRoleBadge;

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="课堂随机点名"
+        android:textColor="#6D28D9"
+        android:textSize="19sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvPickStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="正在从花名册中随机抽取..."
+        android:textColor="#6B7280"
+        android:textSize="13sp" />
+
+    <!-- 中心名字滚动显示牌 -->
+    <FrameLayout
+        android:layout_width="240dp"
+        android:layout_height="110dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
+        android:background="#F3F4F6">
+
+        <TextView
+            android:id="@+id/tvPickRollingName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="准备中"
+            android:textColor="#1F2937"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <Button
+        android:id="@+id/btnClosePickDialog"
+        android:layout_width="wrap_content"
+        android:layout_height="38dp"
+        android:backgroundTint="#1E88E5"
+        android:text="确定"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp" />
+
+</LinearLayout>

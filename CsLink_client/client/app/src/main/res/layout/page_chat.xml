@@ -55,24 +55,24 @@
             android:textColor="#FFFFFF"
             android:textSize="13sp" />
 
-        <!-- QQ风格展开更多“+”号按钮 -->
+        <!-- 展开更多功能按钮 -->
         <Button
             android:id="@+id/btnToggleMorePanel"
-            android:layout_width="38dp"
+            android:layout_width="42dp"
             android:layout_height="36dp"
             android:layout_marginStart="6dp"
             android:backgroundTint="#E5E7EB"
-            android:text="＋"
+            android:text="+"
             android:textColor="#374151"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- 仿 QQ 扩展功能卡片面板 (默认 GONE，点击“＋”展开) -->
+    <!-- 扩展功能抽屉面板 -->
     <LinearLayout
         android:id="@+id/layoutMorePanel"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="96dp"
         android:background="#F9FAFB"
         android:orientation="horizontal"
         android:gravity="center_vertical"
@@ -83,57 +83,84 @@
         <!-- 功能 1：发送图片 -->
         <LinearLayout
             android:id="@+id/itemPanelSendImage"
-            android:layout_width="72dp"
+            android:layout_width="76dp"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:orientation="vertical"
-            android:clickable="true"
-            android:focusable="true">
+            android:orientation="vertical">
 
             <Button
                 android:id="@+id/btnPickImage"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="56dp"
+                android:layout_height="44dp"
                 android:backgroundTint="#E0F2FE"
-                android:text="🖼"
+                android:text="图片"
                 android:textColor="#0369A1"
-                android:textSize="20sp" />
+                android:textSize="13sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="相册图片"
+                android:text="相册发图"
                 android:textColor="#4B5563"
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <!-- 功能 2：课堂抢答 (教师特权) -->
+        <!-- 功能 2：发起抢答 (教师可见) -->
         <LinearLayout
             android:id="@+id/itemPanelStartBuzz"
-            android:layout_width="72dp"
+            android:layout_width="76dp"
             android:layout_height="match_parent"
             android:layout_marginStart="16dp"
             android:gravity="center"
             android:orientation="vertical"
-            android:clickable="true"
-            android:focusable="true"
             android:visibility="gone">
 
             <Button
                 android:id="@+id/btnPanelBuzzAction"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="56dp"
+                android:layout_height="44dp"
                 android:backgroundTint="#FEE2E2"
-                android:text="⚡"
+                android:text="抢答"
                 android:textColor="#DC2626"
-                android:textSize="20sp" />
+                android:textSize="13sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="发起抢答"
+                android:textColor="#4B5563"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- 功能 3：随机点名 (教师可见) -->
+        <LinearLayout
+            android:id="@+id/itemPanelRandomPick"
+            android:layout_width="76dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="16dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnPanelRandomPick"
+                android:layout_width="56dp"
+                android:layout_height="44dp"
+                android:backgroundTint="#EDE9FE"
+                android:text="点名"
+                android:textColor="#6D28D9"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="随机点名"
                 android:textColor="#4B5563"
                 android:textSize="11sp" />
         </LinearLayout>
