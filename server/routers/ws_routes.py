@@ -7,7 +7,7 @@ import random
 router = APIRouter()
 TEACHER_AUTH_TOKEN = "teacher888"
 
-# 全局抢答状态机
+# 1. 全局抢答状态机
 class BuzzManager:
     def __init__(self):
         self.is_active = False
@@ -35,7 +35,45 @@ class BuzzManager:
     def stop(self):
         self.is_active = False
 
+# 2. 全局随堂投票状态机 (A/B/C/D)
+class VoteManager:
+    def __init__(self):
+        self.is_active = False
+        self.title = ""
+        self.votes = {}  # { "学生姓名": "A" }
+
+    def start(self, title: str):
+        self.is_active = True
+        self.title = title.strip() if title and title.strip() else "随堂单选测验"
+        self.votes.clear()
+
+    def submit(self, student_name: str, option: str) -> bool:
+        opt = option.strip().upper()
+        if self.is_active and opt in ("A", "B", "C", "D"):
+            self.votes[student_name] = opt
+            return True
+        return False
+
+    def stop(self):
+        self.is_active = False
+
+    def get_state_payload(self) -> dict:
+        counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+        for chosen in self.votes.values():
+            if chosen in counts:
+                counts[chosen] += 1
+        return {
+            "type": "vote_state",
+            "is_active": self.is_active,
+            "title": self.title,
+            "counts": counts,
+            "total": len(self.votes),
+            "voters": self.votes,
+            "timestamp": int(time.time() * 1000)
+        }
+
 buzz_session = BuzzManager()
+vote_session = VoteManager()
 
 @router.websocket("/ws/chat")
 async def websocket_chat_endpoint(
@@ -80,6 +118,8 @@ async def websocket_chat_endpoint(
         "my_verified_role": actual_role,
         "is_global_muted": manager.is_global_muted,
         "buzz_active": buzz_session.is_active,
+        "vote_active": vote_session.is_active,
+        "vote_data": vote_session.get_state_payload() if vote_session.is_active else None,
         "messages": current_room.history,
         "roster": manager.get_roster_list(),
         "affairs": [a.to_dict() for a in manager.affairs],
@@ -132,14 +172,12 @@ async def websocket_chat_endpoint(
                     })
                     continue
 
-                # 新增：随机点名（天选之子）
+                # 随机点名
                 elif msg_type == "random_pick":
-                    # 优先从当前在线的学生/班长中抽取
                     online_students = [
                         u["name"] for u in manager.roster.values()
                         if u.get("is_online") and u.get("role") != "teacher"
                     ]
-                    # 若当前无在线学生（如老师单机调试），则从所有非教师名册或全员中兜底抽取
                     if not online_students:
                         online_students = [
                             u["name"] for u in manager.roster.values()
@@ -150,7 +188,6 @@ async def websocket_chat_endpoint(
 
                     winner_name = random.choice(online_students) if online_students else "暂无学生"
 
-                    # 广播点名动画数据包
                     pick_payload = {
                         "type": "random_pick_result",
                         "winner": winner_name,
@@ -159,19 +196,53 @@ async def websocket_chat_endpoint(
                     }
                     await broadcast_to_all(pick_payload)
 
-                    # 同步写入公屏系统消息
                     notice_msg = {
                         "type": "system",
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": f"随机点名结果揭晓：请【{winner_name}】同学回答问题！",
+                        "content": f"[随机点名] 请【{winner_name}】同学回答问题",
                         "timestamp": int(time.time() * 1000)
                     }
                     current_room.history.append(notice_msg)
                     if len(current_room.history) > 50:
                         current_room.history.pop(0)
                     await broadcast_to_all(notice_msg)
+                    continue
+
+                # 发起随堂投票
+                elif msg_type == "start_vote":
+                    vote_title = data.get("title", "随堂单选测验")
+                    vote_session.start(vote_title)
+                    await broadcast_to_all(vote_session.get_state_payload())
+                    continue
+
+                # 结束随堂投票并公布统计结果
+                elif msg_type == "stop_vote":
+                    if vote_session.is_active:
+                        vote_session.stop()
+                        final_state = vote_session.get_state_payload()
+                        await broadcast_to_all(final_state)
+
+                        counts = final_state["counts"]
+                        total = final_state["total"]
+                        summary_text = (
+                            f"[随堂投票结果] 题目：{vote_session.title} | "
+                            f"A:{counts['A']}票  B:{counts['B']}票  C:{counts['C']}票  D:{counts['D']}票 "
+                            f"(共 {total} 人参与)"
+                        )
+                        notice_msg = {
+                            "type": "system",
+                            "sender": "系统",
+                            "role": "teacher",
+                            "avatar": "",
+                            "content": summary_text,
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        current_room.history.append(notice_msg)
+                        if len(current_room.history) > 50:
+                            current_room.history.pop(0)
+                        await broadcast_to_all(notice_msg)
                     continue
 
                 # 单人管理与事务发布
@@ -224,13 +295,20 @@ async def websocket_chat_endpoint(
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": f"🎉 恭喜【{buzz_session.winner}】率先抢答成功！耗时仅 {buzz_session.cost_ms} ms",
+                        "content": f"[抢答结果] 恭喜【{buzz_session.winner}】率先抢答成功，耗时 {buzz_session.cost_ms} ms",
                         "timestamp": int(time.time() * 1000)
                     }
                     current_room.history.append(notice_msg)
                     if len(current_room.history) > 50:
                         current_room.history.pop(0)
                     await broadcast_to_all(notice_msg)
+                continue
+
+            # ---------------- 学生提交随堂投票 ----------------
+            if msg_type == "submit_vote":
+                option = data.get("option", "")
+                if vote_session.submit(actual_name, option):
+                    await broadcast_to_all(vote_session.get_state_payload())
                 continue
 
             # ---------------- 学生确认事务 ----------------
@@ -265,7 +343,7 @@ async def websocket_chat_endpoint(
                 if (manager.is_global_muted and current_user_role != "teacher") or sender_record.get("is_muted", False):
                     await websocket.send_text(json.dumps({
                         "type": "system",
-                        "content": "【发言拦截】您当前处于禁言状态或全员禁言已开启",
+                        "content": "[发言拦截] 您当前处于禁言状态或全员禁言已开启",
                         "timestamp": int(time.time() * 1000)
                     }, ensure_ascii=False))
                     continue
