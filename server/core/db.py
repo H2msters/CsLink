@@ -39,7 +39,7 @@ def init_db():
         )
         """)
         
-        # 检查现有老表是否缺失 deadline 字段，若缺失则自动热补丁添加
+        # 自动热补丁添加缺失字段
         cursor.execute("PRAGMA table_info(affairs)")
         columns = [row["name"] for row in cursor.fetchall()]
         if "deadline" not in columns:
@@ -66,7 +66,63 @@ def init_db():
             value TEXT NOT NULL
         )
         """)
+
+        # 5. 班级图书角数据表
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS books (
+            book_id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            uploader TEXT NOT NULL,
+            timestamp INTEGER NOT NULL
+        )
+        """)
+
         conn.commit()
+
+# ---------------- 图书角持久化 ----------------
+
+def load_all_books() -> List[dict]:
+    books = []
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT book_id, title, filename, file_size, uploader, timestamp
+        FROM books ORDER BY timestamp DESC
+        """)
+        for row in cursor.fetchall():
+            books.append({
+                "book_id": row["book_id"],
+                "title": row["title"],
+                "filename": row["filename"],
+                "file_size": row["file_size"],
+                "uploader": row["uploader"],
+                "timestamp": row["timestamp"]
+            })
+    return books
+
+def insert_book(book_id: str, title: str, filename: str, file_size: int, uploader: str, timestamp: int):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT OR REPLACE INTO books (book_id, title, filename, file_size, uploader, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, (book_id, title, filename, file_size, uploader, timestamp))
+        conn.commit()
+
+def delete_book_db(book_id: str) -> Optional[str]:
+    """删除记录并返回对应的文件名以便清理物理磁盘"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT filename FROM books WHERE book_id = ?", (book_id,))
+        row = cursor.fetchone()
+        if row:
+            filename = row["filename"]
+            cursor.execute("DELETE FROM books WHERE book_id = ?", (book_id,))
+            conn.commit()
+            return filename
+    return None
 
 # ---------------- 用户数据持久化 ----------------
 
@@ -197,7 +253,7 @@ def insert_chat_message(room_id: str, msg_type: str, sender: str, role: str, ava
         """, (room_id, msg_type, sender, role, avatar, content, timestamp))
         conn.commit()
 
-# ---------------- 配置持久化 ----------------
+# ---------------- 系统全局配置项 ----------------
 
 def get_setting(key: str, default: str = "") -> str:
     with get_connection() as conn:

@@ -19,7 +19,7 @@
         android:layout_marginStart="4dp"
         android:layout_marginEnd="2dp"
         android:backgroundTint="#E0E0E0"
-        android:text="小组协作"
+        android:text="功能"
         android:textColor="#333333"
         android:textSize="12sp" />
 
@@ -32,7 +32,7 @@
         android:layout_marginStart="2dp"
         android:layout_marginEnd="2dp"
         android:backgroundTint="#1E88E5"
-        android:text="随堂讨论"
+        android:text="班级讨论"
         android:textColor="#FFFFFF"
         android:textSize="12sp" />
 

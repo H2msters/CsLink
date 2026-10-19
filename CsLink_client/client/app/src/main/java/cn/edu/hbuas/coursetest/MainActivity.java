@@ -73,11 +73,12 @@ public class MainActivity extends AppCompatActivity {
     private Button btnHeaderRoster;
     private String currentClassroomTitle = "数字化课堂 [讨论频道]";
 
-    // 页面0：小组协作大厅
+    // 页面0：功能区（小组大厅 + 班级图书角）
     private LinearLayout layoutUserListContainer;
     private TextView tvOnlineCount;
     private Button btnCreateGameRoom;
     private ListView lvGameRooms;
+    private View cardBookCorner;
 
     // 页面1：随堂讨论与抽屉
     private View pageChatLayout;
@@ -281,7 +282,6 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         isInIndependentRoom = false;
 
-        // 核心修复：回到大厅时主动请求中枢刷新小组列表与名册，杜绝界面假死
         if (webSocket != null && isConnected) {
             try {
                 JSONObject req = new JSONObject();
@@ -335,6 +335,7 @@ public class MainActivity extends AppCompatActivity {
         tvOnlineCount = findViewById(R.id.tvOnlineCount);
         btnCreateGameRoom = findViewById(R.id.btnCreateGameRoom);
         lvGameRooms = findViewById(R.id.lvGameRooms);
+        cardBookCorner = findViewById(R.id.cardBookCorner);
 
         pageChatLayout = findViewById(R.id.pageChatLayout);
         recyclerViewChat = findViewById(R.id.recyclerViewChat);
@@ -371,6 +372,11 @@ public class MainActivity extends AppCompatActivity {
         btnTabChat = findViewById(R.id.btnTabChat);
         btnTabAffairs = findViewById(R.id.btnTabAffairs);
         btnTabProfile = findViewById(R.id.btnTabProfile);
+
+        // 规范重置底栏首个 Tab 文本为“功能区”
+        if (btnTabUsers != null) {
+            btnTabUsers.setText("功能区");
+        }
     }
 
     private void initAdapters() {
@@ -451,6 +457,14 @@ public class MainActivity extends AppCompatActivity {
         if (btnHeaderRoster != null) {
             btnHeaderRoster.setOnClickListener(v -> {
                 Intent intent = new Intent(MainActivity.this, RosterActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // 班级图书角点击入口
+        if (cardBookCorner != null) {
+            cardBookCorner.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, BookCornerActivity.class);
                 startActivity(intent);
             });
         }
@@ -1187,7 +1201,6 @@ public class MainActivity extends AppCompatActivity {
                         JSONObject json = new JSONObject(text);
                         String type = json.optString("type", "chat");
 
-                        // 关键重构：即使在独立房间中，全局广播事件也优先由 MainActivity 自身无条件更新并持久保存
                         if ("room_list".equals(type)) {
                             parseAndRefreshRoomList(json.optJSONArray("rooms"));
                             return;
@@ -1204,7 +1217,6 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
 
-                        // 独立房间内部专属消息（history, room_state, rps_result, 组内chat等）路由给房间桥接器
                         if (isInIndependentRoom) {
                             GameSocketBridge.dispatchMessage(json);
                             return;
