@@ -7,7 +7,7 @@
     android:background="#FFFFFF"
     android:padding="22dp">
 
-    <!-- 1. 顶部标题与状态说明 -->
+    <!-- 1. 顶部标题与说明 -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -38,7 +38,7 @@
         android:textColor="#6B7280"
         android:textSize="12sp" />
 
-    <!-- 2. 学生选项按钮组 (A / B / C / D) -->
+    <!-- 2. 学生作答选项按钮组 -->
     <LinearLayout
         android:id="@+id/layoutVoteButtons"
         android:layout_width="match_parent"
@@ -97,14 +97,15 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- 3. 实时票数与占比统计区 -->
+    <!-- 3. 统计区容器：在学生答题未截止时整体隐藏防跟风，截止后展示 -->
     <LinearLayout
+        android:id="@+id/layoutVoteStats"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:background="#F9FAFB"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="14dp">
 
         <TextView
             android:id="@+id/tvVoteTotalCount"
@@ -115,44 +116,88 @@
             android:textSize="13sp"
             android:textStyle="bold" />
 
+        <!-- 选项 A 统计与进度条 -->
         <TextView
             android:id="@+id/tvStatA"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
             android:text="选项 A：0 票 (0%)"
             android:textColor="#4B5563"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
 
+        <ProgressBar
+            android:id="@+id/pbStatA"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#1E88E5" />
+
+        <!-- 选项 B 统计与进度条 -->
         <TextView
             android:id="@+id/tvStatB"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
             android:text="选项 B：0 票 (0%)"
             android:textColor="#4B5563"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
 
+        <ProgressBar
+            android:id="@+id/pbStatB"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#10B981" />
+
+        <!-- 选项 C 统计与进度条 -->
         <TextView
             android:id="@+id/tvStatC"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
             android:text="选项 C：0 票 (0%)"
             android:textColor="#4B5563"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
 
+        <ProgressBar
+            android:id="@+id/pbStatC"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#F59E0B" />
+
+        <!-- 选项 D 统计与进度条 -->
         <TextView
             android:id="@+id/tvStatD"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
             android:text="选项 D：0 票 (0%)"
             android:textColor="#4B5563"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
+
+        <ProgressBar
+            android:id="@+id/pbStatD"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#8B5CF6" />
     </LinearLayout>
 
-    <!-- 4. 底部操作按钮区 -->
+    <!-- 4. 底部操作按钮栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

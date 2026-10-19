@@ -8,187 +8,116 @@
     android:background="#F4F6F9"
     android:fitsSystemWindows="true">
 
-    <!-- 1. 顶部房间标题与退房按钮 -->
+    <!-- 1. 顶部协作室标题栏 -->
     <RelativeLayout
         android:id="@+id/layoutRoomHeader"
         android:layout_width="0dp"
         android:layout_height="52dp"
         android:background="#1E88E5"
-        android:paddingStart="16dp"
+        android:paddingStart="14dp"
         android:paddingEnd="12dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/tvRoomHeaderTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:text="游戏房间"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnExitRoom"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:backgroundTint="#EF4444"
-            android:text="退出房间"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
-    </RelativeLayout>
-
-    <!-- 2. 上半区：猜拳功能工作台 -->
-    <LinearLayout
-        android:id="@+id/layoutGameConsole"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:elevation="2dp"
-        android:orientation="vertical"
-        android:padding="12dp"
-        app:layout_constraintTop_toBottomOf="@id/layoutRoomHeader"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- 对决状态提示 -->
-        <TextView
-            android:id="@+id/tvGameStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="等待对手加入 (1/2人)..."
-            android:textColor="#1F2937"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <!-- 双方出拳状态展示条 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@+id/layoutRightActions"
+            android:layout_marginEnd="6dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/tvPlayer1Status"
+                android:id="@+id/tvRoomHeaderTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="#F0F2F5"
-                android:gravity="center"
-                android:padding="8dp"
-                android:text="我方：未出拳"
-                android:textColor="#374151"
-                android:textSize="13sp" />
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="协作研讨组"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-            <View
-                android:layout_width="8dp"
-                android:layout_height="match_parent" />
-
-            <TextView
-                android:id="@+id/tvPlayer2Status"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="#F0F2F5"
-                android:gravity="center"
-                android:padding="8dp"
-                android:text="对方：未出拳"
-                android:textColor="#374151"
-                android:textSize="13sp" />
+            <Button
+                android:id="@+id/btnDisbandRoom"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
+                android:minWidth="48dp"
+                android:backgroundTint="#EF4444"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="解散"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:visibility="gone" />
         </LinearLayout>
 
-        <!-- 对决结果文本 -->
-        <TextView
-            android:id="@+id/tvGameResult"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center"
-            android:text="请出拳进行对决"
-            android:textColor="#1E88E5"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <!-- 出拳操作按钮组 -->
         <LinearLayout
-            android:id="@+id/layoutActionButtons"
-            android:layout_width="match_parent"
+            android:id="@+id/layoutRightActions"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/btnChoiceRock"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#3B82F6"
-                android:text="石头"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/btnChoiceScissors"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
-                android:backgroundTint="#10B981"
-                android:text="剪刀"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/btnChoicePaper"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"
-                android:backgroundTint="#F59E0B"
-                android:text="布"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/btnResetGame"
+                android:id="@+id/btnRoomMembers"
                 android:layout_width="wrap_content"
-                android:layout_height="38dp"
-                android:layout_marginStart="6dp"
-                android:backgroundTint="#6B7280"
-                android:text="再来一局"
+                android:layout_height="32dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#1565C0"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="组员 (0人)"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnBackToLobby"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:backgroundTint="#374151"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="返回"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp" />
         </LinearLayout>
-    </LinearLayout>
+    </RelativeLayout>
 
-    <!-- 3. 下半区：房间内专属聊天流 -->
+    <!-- 2. 中间：讨论消息流 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvRoomChat"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/layoutGameConsole"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintTop_toBottomOf="@id/layoutRoomHeader"
         app:layout_constraintBottom_toTopOf="@id/layoutRoomInput"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 4. 底部输入栏 -->
+    <!-- 3. 底部输入控制栏 -->
     <LinearLayout
         android:id="@+id/layoutRoomInput"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="#FFFFFF"
+        android:elevation="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp"
+        app:layout_constraintBottom_toTopOf="@id/layoutRoomToolPanel"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -198,16 +127,113 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@null"
-            android:hint="在房间内发送消息..."
-            android:padding="10dp"
+            android:hint="在小组内交流研讨..."
+            android:maxLines="3"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
             android:textSize="14sp" />
 
         <Button
             android:id="@+id/btnSendRoomMsg"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
-            android:layout_marginStart="4dp"
-            android:text="发送" />
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="#1E88E5"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="发送"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnToggleRoomToolPanel"
+            android:layout_width="40dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="#E5E7EB"
+            android:text="+"
+            android:textColor="#374151"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 4. 底部扩展插件抽屉 -->
+    <LinearLayout
+        android:id="@+id/layoutRoomToolPanel"
+        android:layout_width="0dp"
+        android:layout_height="96dp"
+        android:background="#F9FAFB"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- 插件 1：决策猜拳 -->
+        <LinearLayout
+            android:id="@+id/itemToolRps"
+            android:layout_width="76dp"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/btnLaunchRpsTool"
+                android:layout_width="56dp"
+                android:layout_height="44dp"
+                android:backgroundTint="#E0F2FE"
+                android:clickable="false"
+                android:focusable="false"
+                android:text="猜拳"
+                android:textColor="#0369A1"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="决策猜拳"
+                android:textColor="#4B5563"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- 插件 2：协同草稿 -->
+        <LinearLayout
+            android:id="@+id/itemToolCanvas"
+            android:layout_width="76dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="16dp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/btnToolCanvasAction"
+                android:layout_width="56dp"
+                android:layout_height="44dp"
+                android:backgroundTint="#DCFCE7"
+                android:clickable="false"
+                android:focusable="false"
+                android:text="白板"
+                android:textColor="#15803D"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="协同草稿"
+                android:textColor="#4B5563"
+                android:textSize="11sp" />
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

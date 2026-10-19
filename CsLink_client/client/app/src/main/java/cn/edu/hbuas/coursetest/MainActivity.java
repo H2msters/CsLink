@@ -1,6 +1,8 @@
 package cn.edu.hbuas.coursetest;
 
+import android.app.DatePickerDialog;
 import android.app.Dialog;
+import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,12 +12,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.VibrationEffect;
-import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Base64;
@@ -48,8 +47,10 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -69,15 +70,16 @@ public class MainActivity extends AppCompatActivity {
     private static final String DEFAULT_ROLE = "student";
 
     private TextView tvTitle;
+    private Button btnHeaderRoster;
+    private String currentClassroomTitle = "数字化课堂 [讨论频道]";
 
-    // 页面0：名册与互动房间
+    // 页面0：小组协作大厅
     private LinearLayout layoutUserListContainer;
     private TextView tvOnlineCount;
     private Button btnCreateGameRoom;
     private ListView lvGameRooms;
-    private ListView lvOnlineUsers;
 
-    // 页面1：随堂讨论与扩展更多面板
+    // 页面1：随堂讨论与抽屉
     private View pageChatLayout;
     private RecyclerView recyclerViewChat;
     private LinearLayoutManager chatLayoutManager;
@@ -91,8 +93,10 @@ public class MainActivity extends AppCompatActivity {
     private Button btnPanelBuzzAction;
     private LinearLayout itemPanelRandomPick;
     private Button btnPanelRandomPick;
+    private LinearLayout itemPanelStartVote;
+    private Button btnPanelStartVote;
 
-    // 页面2：班级事务与分栏
+    // 页面2：班级事务
     private View pageAffairsLayout;
     private TextView tvAffairsSummary;
     private Button btnPublishAffair;
@@ -103,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
     private List<AffairItem> allAffairList;
     private List<AffairItem> displayAffairList;
     private AffairsAdapter affairsAdapter;
-    private String currentAffairFilter = "notice"; // "notice" 或 "homework"
+    private String currentAffairFilter = "notice";
 
     // 页面3：个人中心
     private LinearLayout layoutProfileContainer;
@@ -126,20 +130,18 @@ public class MainActivity extends AppCompatActivity {
     private ChatAdapter chatAdapter;
 
     private List<RosterUser> rosterUserList;
-    private RosterAdapter userListAdapter;
 
     private List<String> gameRoomDisplayList;
     private List<String> gameRoomIdList;
     private ArrayAdapter<String> gameRoomAdapter;
 
-    // 抢答与随机点名弹窗组件
-    private Dialog currentBuzzerDialog;
-    private TextView tvBuzzerStatus;
-    private Button btnBuzzAction;
-    private LinearLayout layoutBuzzResult;
-    private TextView tvWinnerName;
-    private TextView tvCostTime;
-    private Dialog currentPickDialog;
+    // 弹窗管理器引用与最新活动状态
+    private InteractiveDialogManager dialogManager;
+    private JSONObject latestVoteData = null;
+    private boolean latestBuzzActive = false;
+    private String latestBuzzTitle = "随堂即时抢答";
+    private String latestBuzzWinner = "";
+    private int latestBuzzCostMs = 0;
 
     private OkHttpClient httpClient;
     private WebSocket webSocket;
@@ -151,6 +153,7 @@ public class MainActivity extends AppCompatActivity {
     private String myRole = DEFAULT_ROLE;
     private String myAuthToken = "";
     private boolean isConnected = false;
+    private boolean isConnecting = false;
     private boolean isDestroyed = false;
     private boolean isGlobalMuted = false;
     private boolean isInIndependentRoom = false;
@@ -215,18 +218,78 @@ public class MainActivity extends AppCompatActivity {
         myRole = sharedPreferences.getString(KEY_USER_ROLE, DEFAULT_ROLE);
         myAuthToken = sharedPreferences.getString(KEY_AUTH_TOKEN, "");
 
+        initDialogManager();
         initViews();
         initAdapters();
         initListeners();
         updateProfileDisplay();
-        switchPage(1); // 默认定位在随堂讨论
+        switchPage(1);
         connectWebSocket();
+    }
+
+    private void initDialogManager() {
+        dialogManager = new InteractiveDialogManager(this, new InteractiveDialogManager.OnDialogActionListener() {
+            @Override
+            public void onSubmitVote(String option) {
+                if (webSocket != null && isConnected) {
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "submit_vote");
+                        json.put("option", option);
+                        webSocket.send(json.toString());
+                    } catch (JSONException ignored) {}
+                }
+            }
+
+            @Override
+            public void onStopVote() {
+                if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "stop_vote");
+                        webSocket.send(json.toString());
+                    } catch (JSONException ignored) {}
+                }
+            }
+
+            @Override
+            public void onSubmitBuzz() {
+                if (webSocket != null && isConnected) {
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "submit_buzz");
+                        webSocket.send(json.toString());
+                    } catch (JSONException ignored) {}
+                }
+            }
+
+            @Override
+            public void onStopBuzz() {
+                if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "stop_buzz");
+                        webSocket.send(json.toString());
+                    } catch (JSONException ignored) {}
+                }
+            }
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         isInIndependentRoom = false;
+
+        // 核心修复：回到大厅时主动请求中枢刷新小组列表与名册，杜绝界面假死
+        if (webSocket != null && isConnected) {
+            try {
+                JSONObject req = new JSONObject();
+                req.put("type", "refresh_lobby");
+                webSocket.send(req.toString());
+            } catch (JSONException ignored) {}
+        }
+
         String latestIp = sharedPreferences.getString(KEY_SERVER_IP, DEFAULT_SERVER_IP);
         String latestRole = sharedPreferences.getString(KEY_USER_ROLE, DEFAULT_ROLE);
         String latestToken = sharedPreferences.getString(KEY_AUTH_TOKEN, "");
@@ -246,22 +309,33 @@ public class MainActivity extends AppCompatActivity {
         }
 
         updateProfileDisplay();
-        if (needReconnect || !isConnected) {
+
+        if (needReconnect) {
+            reconnectHandler.removeCallbacks(reconnectRunnable);
+            isConnected = false;
+            isConnecting = false;
+            if (webSocket != null) {
+                WebSocket oldSocket = webSocket;
+                webSocket = null;
+                try {
+                    oldSocket.cancel();
+                } catch (Exception ignored) {}
+            }
+            connectWebSocket();
+        } else if (!isConnected && !isConnecting) {
             connectWebSocket();
         }
     }
 
     private void initViews() {
         tvTitle = findViewById(R.id.tvTitle);
+        btnHeaderRoster = findViewById(R.id.btnHeaderRoster);
 
-        // 页面0
         layoutUserListContainer = findViewById(R.id.layoutUserListContainer);
         tvOnlineCount = findViewById(R.id.tvOnlineCount);
         btnCreateGameRoom = findViewById(R.id.btnCreateGameRoom);
         lvGameRooms = findViewById(R.id.lvGameRooms);
-        lvOnlineUsers = findViewById(R.id.lvOnlineUsers);
 
-        // 页面1
         pageChatLayout = findViewById(R.id.pageChatLayout);
         recyclerViewChat = findViewById(R.id.recyclerViewChat);
         layoutInputBar = findViewById(R.id.layoutInputBar);
@@ -274,8 +348,9 @@ public class MainActivity extends AppCompatActivity {
         btnPanelBuzzAction = findViewById(R.id.btnPanelBuzzAction);
         itemPanelRandomPick = findViewById(R.id.itemPanelRandomPick);
         btnPanelRandomPick = findViewById(R.id.btnPanelRandomPick);
+        itemPanelStartVote = findViewById(R.id.itemPanelStartVote);
+        btnPanelStartVote = findViewById(R.id.btnPanelStartVote);
 
-        // 页面2
         pageAffairsLayout = findViewById(R.id.pageAffairsLayout);
         tvAffairsSummary = findViewById(R.id.tvAffairsSummary);
         btnPublishAffair = findViewById(R.id.btnPublishAffair);
@@ -284,7 +359,6 @@ public class MainActivity extends AppCompatActivity {
         rvAffairs = findViewById(R.id.rvAffairs);
         tvEmptyAffairs = findViewById(R.id.tvEmptyAffairs);
 
-        // 页面3
         layoutProfileContainer = findViewById(R.id.layoutProfileContainer);
         ivUserAvatar = findViewById(R.id.ivUserAvatar);
         tvProfileNickname = findViewById(R.id.tvProfileNickname);
@@ -293,7 +367,6 @@ public class MainActivity extends AppCompatActivity {
         btnEditProfileName = findViewById(R.id.btnEditProfileName);
         btnSettings = findViewById(R.id.btnSettings);
 
-        // 底部四个 Tab 导航
         btnTabUsers = findViewById(R.id.btnTabUsers);
         btnTabChat = findViewById(R.id.btnTabChat);
         btnTabAffairs = findViewById(R.id.btnTabAffairs);
@@ -307,13 +380,40 @@ public class MainActivity extends AppCompatActivity {
             userAvatarMap.put(myNickname, myAvatarBase64);
         }
         chatAdapter = new ChatAdapter(messageList, userAvatarMap);
+
+        chatAdapter.setOnInteractiveCardClickListener((cardType, title) -> {
+            if ("card_buzz".equals(cardType)) {
+                dialogManager.showBuzzerWindow(
+                        TextUtils.isEmpty(title) ? latestBuzzTitle : title,
+                        myRole,
+                        latestBuzzActive,
+                        latestBuzzWinner,
+                        latestBuzzCostMs,
+                        myNickname
+                );
+            } else if ("card_vote".equals(cardType)) {
+                if (latestVoteData != null) {
+                    dialogManager.showVoteWindow(latestVoteData, myRole, myNickname);
+                } else {
+                    try {
+                        JSONObject dummy = new JSONObject();
+                        dummy.put("title", title);
+                        dummy.put("is_active", false);
+                        dialogManager.showVoteWindow(dummy, myRole, myNickname);
+                    } catch (JSONException ignored) {}
+                }
+            }
+        });
+
+        chatAdapter.setOnImageClickListener(imageBase64 -> {
+            dialogManager.showImagePreviewDialog(imageBase64);
+        });
+
         chatLayoutManager = new LinearLayoutManager(this);
         recyclerViewChat.setLayoutManager(chatLayoutManager);
         recyclerViewChat.setAdapter(chatAdapter);
 
         rosterUserList = new ArrayList<>();
-        userListAdapter = new RosterAdapter(this, rosterUserList);
-        lvOnlineUsers.setAdapter(userListAdapter);
 
         gameRoomDisplayList = new ArrayList<>();
         gameRoomIdList = new ArrayList<>();
@@ -329,8 +429,18 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onViewConfirmedList(AffairItem item) {
-                showConfirmedStudentsDialog(item);
+            public void onViewUnreadList(AffairItem item, List<String> unreadStudents) {
+                showUnreadStudentsDialog(unreadStudents);
+            }
+
+            @Override
+            public void onEdit(AffairItem item) {
+                showEditAffairDialog(item);
+            }
+
+            @Override
+            public void onDelete(String affairId) {
+                confirmDeleteAffair(affairId);
             }
         });
         rvAffairs.setLayoutManager(new LinearLayoutManager(this));
@@ -338,14 +448,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initListeners() {
-        // 个人中心重连按钮
+        if (btnHeaderRoster != null) {
+            btnHeaderRoster.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, RosterActivity.class);
+                startActivity(intent);
+            });
+        }
+
         btnProfileReconnect.setOnClickListener(v -> {
             reconnectHandler.removeCallbacks(reconnectRunnable);
+            isConnected = false;
+            isConnecting = false;
+            if (webSocket != null) {
+                WebSocket oldSocket = webSocket;
+                webSocket = null;
+                try {
+                    oldSocket.cancel();
+                } catch (Exception ignored) {}
+            }
             connectWebSocket();
-            Toast.makeText(this, "正在重新连接中枢...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "正在重新连接中枢 (" + currentServerIp + ")...", Toast.LENGTH_SHORT).show();
         });
 
-        // 抽屉折叠与展开
         btnToggleMorePanel.setOnClickListener(v -> {
             if (layoutMorePanel.getVisibility() == View.VISIBLE) {
                 layoutMorePanel.setVisibility(View.GONE);
@@ -356,7 +480,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 抽屉内发图
         btnPickImage.setOnClickListener(v -> {
             layoutMorePanel.setVisibility(View.GONE);
             btnToggleMorePanel.setText("+");
@@ -364,33 +487,33 @@ public class MainActivity extends AppCompatActivity {
             chatImagePickerLauncher.launch(intent);
         });
 
-        // 抽屉内教师发起抢答
         btnPanelBuzzAction.setOnClickListener(v -> {
             layoutMorePanel.setVisibility(View.GONE);
             btnToggleMorePanel.setText("+");
             showInitiateBuzzDialog();
         });
 
-        // 抽屉内教师发起随机点名
-        if (btnPanelRandomPick != null) {
-            btnPanelRandomPick.setOnClickListener(v -> {
-                layoutMorePanel.setVisibility(View.GONE);
-                btnToggleMorePanel.setText("+");
-                if (webSocket != null && isConnected) {
-                    try {
-                        JSONObject json = new JSONObject();
-                        json.put("type", "random_pick");
-                        webSocket.send(json.toString());
-                    } catch (JSONException ignored) {}
-                }
-            });
-        }
+        btnPanelRandomPick.setOnClickListener(v -> {
+            layoutMorePanel.setVisibility(View.GONE);
+            btnToggleMorePanel.setText("+");
+            if (webSocket != null && isConnected) {
+                try {
+                    JSONObject json = new JSONObject();
+                    json.put("type", "random_pick");
+                    webSocket.send(json.toString());
+                } catch (JSONException ignored) {}
+            }
+        });
 
-        // 班级事务分栏按钮监听
+        btnPanelStartVote.setOnClickListener(v -> {
+            layoutMorePanel.setVisibility(View.GONE);
+            btnToggleMorePanel.setText("+");
+            showInitiateVoteDialog();
+        });
+
         btnFilterNotice.setOnClickListener(v -> switchAffairTab("notice"));
         btnFilterHomework.setOnClickListener(v -> switchAffairTab("homework"));
 
-        // 教师长按标题切换全员禁言
         tvTitle.setOnLongClickListener(v -> {
             if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
                 boolean targetMute = !isGlobalMuted;
@@ -436,17 +559,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        lvOnlineUsers.setOnItemClickListener((parent, view, position, id) -> {
-            if (position >= 0 && position < rosterUserList.size()) {
-                RosterUser targetUser = rosterUserList.get(position);
-                if ("teacher".equalsIgnoreCase(myRole)) {
-                    showTeacherManageStudentDialog(targetUser);
-                } else {
-                    Toast.makeText(this, targetUser.name + " · " + (targetUser.isOnline ? "在线" : "离线"), Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
         btnPublishAffair.setOnClickListener(v -> showPublishAffairDialog());
         btnEditProfileName.setOnClickListener(v -> showChangeNameDialog());
 
@@ -480,7 +592,6 @@ public class MainActivity extends AppCompatActivity {
             layoutProfileContainer.setVisibility(pageIndex == 3 ? View.VISIBLE : View.GONE);
         }
 
-        // 切出讨论页时折叠抽屉
         if (layoutMorePanel != null && pageIndex != 1) {
             layoutMorePanel.setVisibility(View.GONE);
             if (btnToggleMorePanel != null) btnToggleMorePanel.setText("+");
@@ -501,8 +612,6 @@ public class MainActivity extends AppCompatActivity {
         ViewCompat.setBackgroundTintList(btn, ColorStateList.valueOf(isSelected ? actBg : inactBg));
         btn.setTextColor(isSelected ? actText : inactText);
     }
-
-    // ---------------- 班级事务/作业分类过滤 ----------------
 
     private void switchAffairTab(String category) {
         currentAffairFilter = category;
@@ -533,12 +642,33 @@ public class MainActivity extends AppCompatActivity {
             affairsAdapter.notifyDataSetChanged();
         }
         if (tvEmptyAffairs != null) {
-            tvEmptyAffairs.setText("notice".equals(currentAffairFilter) ? "暂无班级通知" : "暂无随堂作业");
+            tvEmptyAffairs.setText("notice".equals(currentAffairFilter) ? "暂无班级通知" : "暂无班级作业");
             tvEmptyAffairs.setVisibility(displayAffairList.isEmpty() ? View.VISIBLE : View.GONE);
         }
     }
 
-    // ---------------- 课堂抢答与随机点名模块 ----------------
+    private void showInitiateVoteDialog() {
+        final EditText input = new EditText(this);
+        input.setHint("输入投票题目");
+        input.setText("随堂单选测验第 1 题");
+
+        new AlertDialog.Builder(this)
+                .setTitle("发起随堂投票")
+                .setView(input)
+                .setPositiveButton("全员开始投票", (dialog, which) -> {
+                    String title = input.getText().toString().trim();
+                    if (webSocket != null && isConnected) {
+                        try {
+                            JSONObject json = new JSONObject();
+                            json.put("type", "start_vote");
+                            json.put("title", TextUtils.isEmpty(title) ? "随堂单选测验" : title);
+                            webSocket.send(json.toString());
+                        } catch (JSONException ignored) {}
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
 
     private void showInitiateBuzzDialog() {
         final EditText input = new EditText(this);
@@ -563,214 +693,162 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void showBuzzerWindow(String title) {
-        if (isFinishing() || isDestroyed) return;
+    private void showDateTimePickerDialog(EditText targetEditText) {
+        Calendar calendar = Calendar.getInstance();
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        int minute = calendar.get(Calendar.MINUTE);
 
-        if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
-            currentBuzzerDialog.dismiss();
+        DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, pickedYear, pickedMonth, pickedDay) -> {
+            TimePickerDialog timePickerDialog = new TimePickerDialog(this, (timeView, pickedHour, pickedMinute) -> {
+                String formatted = String.format(Locale.getDefault(), "%02d-%02d %02d:%02d",
+                        pickedMonth + 1, pickedDay, pickedHour, pickedMinute);
+                targetEditText.setText(formatted);
+            }, hour, minute, true);
+            timePickerDialog.show();
+        }, year, month, day);
+
+        datePickerDialog.show();
+    }
+
+    private void showPublishAffairDialog() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_publish_affair, null);
+        dialog.setContentView(view);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
 
-        currentBuzzerDialog = new Dialog(this);
-        currentBuzzerDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_buzzer, null);
-        currentBuzzerDialog.setContentView(dialogView);
+        RadioButton rbTypeNotice = view.findViewById(R.id.rbTypeNotice);
+        RadioButton rbTypeHomework = view.findViewById(R.id.rbTypeHomework);
+        EditText etAffairTitle = view.findViewById(R.id.etAffairTitle);
+        EditText etAffairDeadline = view.findViewById(R.id.etAffairDeadline);
+        Button btnClearDeadline = view.findViewById(R.id.btnClearDeadline);
+        EditText etAffairContent = view.findViewById(R.id.etAffairContent);
+        Button btnCancel = view.findViewById(R.id.btnCancelAffair);
+        Button btnSubmit = view.findViewById(R.id.btnSubmitAffair);
 
-        if (currentBuzzerDialog.getWindow() != null) {
-            currentBuzzerDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            currentBuzzerDialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        if ("homework".equalsIgnoreCase(currentAffairFilter)) {
+            rbTypeHomework.setChecked(true);
+        } else {
+            rbTypeNotice.setChecked(true);
         }
-        currentBuzzerDialog.setCancelable(false);
 
-        TextView tvBuzzerTitle = dialogView.findViewById(R.id.tvBuzzerTitle);
-        tvBuzzerStatus = dialogView.findViewById(R.id.tvBuzzerStatus);
-        btnBuzzAction = dialogView.findViewById(R.id.btnBuzzAction);
-        layoutBuzzResult = dialogView.findViewById(R.id.layoutBuzzResult);
-        tvWinnerName = dialogView.findViewById(R.id.tvWinnerName);
-        tvCostTime = dialogView.findViewById(R.id.tvCostTime);
-        Button btnDismissBuzzer = dialogView.findViewById(R.id.btnDismissBuzzer);
+        etAffairDeadline.setOnClickListener(v -> showDateTimePickerDialog(etAffairDeadline));
+        if (btnClearDeadline != null) {
+            btnClearDeadline.setOnClickListener(v -> etAffairDeadline.setText(""));
+        }
 
-        tvBuzzerTitle.setText(title);
-        tvBuzzerStatus.setText("抢答进行中，点击下方按钮参与抢答");
-        layoutBuzzResult.setVisibility(View.GONE);
-        btnBuzzAction.setVisibility(View.VISIBLE);
-        btnBuzzAction.setEnabled(true);
-        btnBuzzAction.setText("抢答");
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnSubmit.setOnClickListener(v -> {
+            String title = etAffairTitle.getText().toString().trim();
+            String content = etAffairContent.getText().toString().trim();
+            String deadline = etAffairDeadline.getText().toString().trim();
+            String aType = rbTypeHomework.isChecked() ? "homework" : "notice";
 
-        btnBuzzAction.setOnClickListener(v -> {
-            triggerHapticFeedback(80);
-            btnBuzzAction.setEnabled(false);
-            btnBuzzAction.setText("已提交");
-            tvBuzzerStatus.setText("正在裁决第一名...");
+            if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
+                Toast.makeText(this, "标题和内容不能为空", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
             if (webSocket != null && isConnected) {
                 try {
                     JSONObject json = new JSONObject();
-                    json.put("type", "submit_buzz");
+                    json.put("type", "publish_affair");
+                    json.put("title", title);
+                    json.put("content", content);
+                    json.put("affair_type", aType);
+                    json.put("deadline", deadline);
                     webSocket.send(json.toString());
+                    dialog.dismiss();
                 } catch (JSONException ignored) {}
             }
         });
 
-        btnDismissBuzzer.setOnClickListener(v -> {
-            if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
+        dialog.show();
+    }
+
+    private void showEditAffairDialog(AffairItem item) {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_publish_affair, null);
+        dialog.setContentView(view);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        TextView tvDialogTitle = view.findViewById(R.id.tvDialogAffairTitle);
+        tvDialogTitle.setText("编辑班级事务");
+
+        RadioButton rbTypeNotice = view.findViewById(R.id.rbTypeNotice);
+        RadioButton rbTypeHomework = view.findViewById(R.id.rbTypeHomework);
+        EditText etAffairTitle = view.findViewById(R.id.etAffairTitle);
+        EditText etAffairDeadline = view.findViewById(R.id.etAffairDeadline);
+        Button btnClearDeadline = view.findViewById(R.id.btnClearDeadline);
+        EditText etAffairContent = view.findViewById(R.id.etAffairContent);
+        Button btnCancel = view.findViewById(R.id.btnCancelAffair);
+        Button btnSubmit = view.findViewById(R.id.btnSubmitAffair);
+        btnSubmit.setText("保存修改");
+
+        etAffairTitle.setText(item.getTitle());
+        etAffairContent.setText(item.getContent());
+        etAffairDeadline.setText(item.getDeadline());
+        if ("homework".equalsIgnoreCase(item.getType())) {
+            rbTypeHomework.setChecked(true);
+        } else {
+            rbTypeNotice.setChecked(true);
+        }
+
+        etAffairDeadline.setOnClickListener(v -> showDateTimePickerDialog(etAffairDeadline));
+        if (btnClearDeadline != null) {
+            btnClearDeadline.setOnClickListener(v -> etAffairDeadline.setText(""));
+        }
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnSubmit.setOnClickListener(v -> {
+            String title = etAffairTitle.getText().toString().trim();
+            String content = etAffairContent.getText().toString().trim();
+            String deadline = etAffairDeadline.getText().toString().trim();
+            String aType = rbTypeHomework.isChecked() ? "homework" : "notice";
+
+            if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
+                Toast.makeText(this, "标题和内容不能为空", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (webSocket != null && isConnected) {
                 try {
                     JSONObject json = new JSONObject();
-                    json.put("type", "stop_buzz");
+                    json.put("type", "edit_affair");
+                    json.put("affair_id", item.getAffairId());
+                    json.put("title", title);
+                    json.put("content", content);
+                    json.put("affair_type", aType);
+                    json.put("deadline", deadline);
                     webSocket.send(json.toString());
+                    dialog.dismiss();
                 } catch (JSONException ignored) {}
-            }
-            if (currentBuzzerDialog != null) {
-                currentBuzzerDialog.dismiss();
             }
         });
 
-        triggerHapticFeedback(120);
-        currentBuzzerDialog.show();
+        dialog.show();
     }
 
-    private void renderBuzzResult(String winner, int costMs) {
-        if (currentBuzzerDialog == null || !currentBuzzerDialog.isShowing()) {
-            showBuzzerWindow("随堂抢答");
-        }
-
-        if (btnBuzzAction != null) {
-            btnBuzzAction.setVisibility(View.GONE);
-        }
-        if (layoutBuzzResult != null) {
-            layoutBuzzResult.setVisibility(View.VISIBLE);
-        }
-        if (tvWinnerName != null) {
-            tvWinnerName.setText(winner);
-        }
-        if (tvCostTime != null) {
-            tvCostTime.setText("用时：" + costMs + " ms");
-        }
-        if (tvBuzzerStatus != null) {
-            if (winner.equals(myNickname)) {
-                tvBuzzerStatus.setText("恭喜，你获得了本次抢答第一名");
-                triggerHapticFeedback(300);
-            } else {
-                tvBuzzerStatus.setText("本次抢答第一名：" + winner);
-            }
-        }
-    }
-
-    private void showRandomPickAnimationDialog(String finalWinner, List<String> candidates) {
-        if (isFinishing() || isDestroyed) return;
-
-        if (currentPickDialog != null && currentPickDialog.isShowing()) {
-            currentPickDialog.dismiss();
-        }
-
-        currentPickDialog = new Dialog(this);
-        currentPickDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_random_pick, null);
-        currentPickDialog.setContentView(view);
-
-        if (currentPickDialog.getWindow() != null) {
-            currentPickDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            currentPickDialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
-
-        TextView tvStatus = view.findViewById(R.id.tvPickStatus);
-        TextView tvRollingName = view.findViewById(R.id.tvPickRollingName);
-        Button btnClose = view.findViewById(R.id.btnClosePickDialog);
-        btnClose.setEnabled(false);
-        btnClose.setOnClickListener(v -> currentPickDialog.dismiss());
-
-        currentPickDialog.show();
-
-        final List<String> pool = (candidates != null && !candidates.isEmpty()) ? candidates : new ArrayList<>();
-        if (pool.isEmpty()) pool.add(finalWinner);
-
-        final Handler animHandler = new Handler(Looper.getMainLooper());
-        final int totalSteps = 15;
-        final int[] currentStep = {0};
-
-        Runnable rollTask = new Runnable() {
-            @Override
-            public void run() {
-                if (currentStep[0] < totalSteps) {
-                    String tempName = pool.get(currentStep[0] % pool.size());
-                    tvRollingName.setText(tempName);
-                    tvRollingName.setTextColor(Color.parseColor("#4B5563"));
-                    currentStep[0]++;
-                    animHandler.postDelayed(this, 80);
-                } else {
-                    tvStatus.setText("抽中结果已揭晓，请以下同学回答：");
-                    tvRollingName.setText(finalWinner);
-                    tvRollingName.setTextColor(Color.parseColor("#6D28D9"));
-                    btnClose.setEnabled(true);
-                    if (finalWinner.equals(myNickname)) {
-                        triggerHapticFeedback(250);
-                    }
-                }
-            }
-        };
-        animHandler.post(rollTask);
-    }
-
-    private void triggerHapticFeedback(long ms) {
-        try {
-            Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-            if (vibrator != null && vibrator.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
-                } else {
-                    vibrator.vibrate(ms);
-                }
-            }
-        } catch (Exception ignored) {}
-    }
-
-    // ---------------- 班级事务辅助 ----------------
-
-    private void showPublishAffairDialog() {
-        LinearLayout dialogLayout = new LinearLayout(this);
-        dialogLayout.setOrientation(LinearLayout.VERTICAL);
-        dialogLayout.setPadding(60, 30, 60, 20);
-
-        final RadioGroup rgType = new RadioGroup(this);
-        rgType.setOrientation(RadioGroup.HORIZONTAL);
-        final RadioButton rbNotice = new RadioButton(this);
-        rbNotice.setText("班级通知");
-        rbNotice.setChecked("notice".equalsIgnoreCase(currentAffairFilter));
-        final RadioButton rbHomework = new RadioButton(this);
-        rbHomework.setText("随堂作业");
-        rbHomework.setChecked("homework".equalsIgnoreCase(currentAffairFilter));
-        rgType.addView(rbNotice);
-        rgType.addView(rbHomework);
-        dialogLayout.addView(rgType);
-
-        final EditText etTitleInput = new EditText(this);
-        etTitleInput.setHint("输入事务标题 (例如: 今日实训作业)");
-        dialogLayout.addView(etTitleInput);
-
-        final EditText etContentInput = new EditText(this);
-        etContentInput.setHint("输入具体内容与要求");
-        etContentInput.setMinLines(3);
-        dialogLayout.addView(etContentInput);
-
+    private void confirmDeleteAffair(String affairId) {
         new AlertDialog.Builder(this)
-                .setTitle("发布班级事务")
-                .setView(dialogLayout)
-                .setPositiveButton("立即发布", (dialog, which) -> {
-                    String title = etTitleInput.getText().toString().trim();
-                    String content = etContentInput.getText().toString().trim();
-                    String aType = rbHomework.isChecked() ? "homework" : "notice";
-
-                    if (TextUtils.isEmpty(title) || TextUtils.isEmpty(content)) {
-                        Toast.makeText(this, "标题和内容不能为空", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
+                .setTitle("删除事务确认")
+                .setMessage("确定要删除此条班级事务吗？删除后所有学生的记录将同步移除。")
+                .setPositiveButton("删除", (dialog, which) -> {
                     if (webSocket != null && isConnected) {
                         try {
                             JSONObject json = new JSONObject();
-                            json.put("type", "publish_affair");
-                            json.put("title", title);
-                            json.put("content", content);
-                            json.put("affair_type", aType);
+                            json.put("type", "delete_affair");
+                            json.put("affair_id", affairId);
                             webSocket.send(json.toString());
                         } catch (JSONException ignored) {}
                     }
@@ -790,107 +868,66 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void showConfirmedStudentsDialog(AffairItem item) {
-        List<String> confirmed = item.getConfirmedStudents();
+    private void showUnreadStudentsDialog(List<String> unreadStudents) {
         StringBuilder sb = new StringBuilder();
-        if (confirmed == null || confirmed.isEmpty()) {
-            sb.append("暂无学生完成确认。");
+        if (unreadStudents == null || unreadStudents.isEmpty()) {
+            sb.append("全员均已完成阅读。");
         } else {
-            for (int i = 0; i < confirmed.size(); i++) {
-                sb.append(i + 1).append(". ").append(confirmed.get(i)).append("\n");
+            for (int i = 0; i < unreadStudents.size(); i++) {
+                sb.append(i + 1).append(". ").append(unreadStudents.get(i)).append("\n");
             }
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("已确认名单 (" + (confirmed != null ? confirmed.size() : 0) + "人)")
+                .setTitle("未读名单 (" + (unreadStudents != null ? unreadStudents.size() : 0) + "人)")
                 .setMessage(sb.toString().trim())
                 .setPositiveButton("关闭", null)
                 .show();
     }
 
-    private void showTeacherManageStudentDialog(RosterUser target) {
-        if (target.name.equals(myNickname)) {
-            Toast.makeText(this, "不能对自己进行管理操作", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String muteActionText = target.isMuted ? "解除禁言" : "单独禁言";
-        String[] options = {muteActionText, "变更角色身份 (学生/班长)", "修改姓名或学号"};
-
-        new AlertDialog.Builder(this)
-                .setTitle("管理学生：" + target.name)
-                .setItems(options, (dialog, which) -> {
-                    if (which == 0) {
-                        sendAdminManageCommand(target.name, "toggle_mute", null, null);
-                    } else if (which == 1) {
-                        showChangeRoleSubDialog(target);
-                    } else if (which == 2) {
-                        showRenameStudentSubDialog(target);
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void showChangeRoleSubDialog(RosterUser target) {
-        String[] roles = {"student", "monitor"};
-        String[] roleLabels = {"设为普通学生", "任命为班长"};
-        new AlertDialog.Builder(this)
-                .setTitle("调整【" + target.name + "】的身份")
-                .setItems(roleLabels, (dialog, which) -> {
-                    sendAdminManageCommand(target.name, "set_role", roles[which], null);
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void showRenameStudentSubDialog(RosterUser target) {
-        final EditText etNewName = new EditText(this);
-        etNewName.setHint("输入新姓名或学号");
-        etNewName.setText(target.name);
-
-        new AlertDialog.Builder(this)
-                .setTitle("修改【" + target.name + "】的姓名")
-                .setView(etNewName)
-                .setPositiveButton("确认", (dialog, which) -> {
-                    String newName = etNewName.getText().toString().trim();
-                    if (!TextUtils.isEmpty(newName)) {
-                        sendAdminManageCommand(target.name, "rename", null, newName);
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void sendAdminManageCommand(String targetName, String operation, String newRole, String newName) {
-        if (webSocket != null && isConnected) {
-            try {
-                JSONObject json = new JSONObject();
-                json.put("type", "admin_manage_student");
-                json.put("target_name", targetName);
-                json.put("operation", operation);
-                if (newRole != null) json.put("new_role", newRole);
-                if (newName != null) json.put("new_name", newName);
-                webSocket.send(json.toString());
-            } catch (JSONException ignored) {}
-        }
-    }
-
     private void showCreateRoomDialog() {
+        LinearLayout dialogLayout = new LinearLayout(this);
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(60, 20, 60, 20);
+
         final EditText input = new EditText(this);
-        input.setHint("输入小组互动室名称");
-        input.setText(myNickname + "的互动组");
+        input.setHint("输入小组名称");
+        input.setText(myNickname + "的协作组");
+        dialogLayout.addView(input);
+
+        TextView tvCapLabel = new TextView(this);
+        tvCapLabel.setText("选择小组人数上限：");
+        tvCapLabel.setTextColor(Color.parseColor("#4B5563"));
+        tvCapLabel.setTextSize(13);
+        tvCapLabel.setPadding(0, 24, 0, 8);
+        dialogLayout.addView(tvCapLabel);
+
+        final RadioGroup rgCapacity = new RadioGroup(this);
+        rgCapacity.setOrientation(RadioGroup.HORIZONTAL);
+        int[] caps = {2, 4, 6, 8};
+        for (int cap : caps) {
+            RadioButton rb = new RadioButton(this);
+            rb.setText(cap + "人");
+            rb.setId(cap);
+            if (cap == 4) rb.setChecked(true);
+            rgCapacity.addView(rb);
+        }
+        dialogLayout.addView(rgCapacity);
 
         new AlertDialog.Builder(this)
-                .setTitle("创建独立互动房间")
-                .setView(input)
+                .setTitle("创建协作小组 / 休息室")
+                .setView(dialogLayout)
                 .setPositiveButton("创建并进入", (dialog, which) -> {
                     String title = input.getText().toString().trim();
+                    int selectedCap = rgCapacity.getCheckedRadioButtonId();
+                    if (selectedCap <= 0) selectedCap = 4;
+
                     if (!TextUtils.isEmpty(title) && webSocket != null && isConnected) {
                         try {
                             JSONObject json = new JSONObject();
                             json.put("type", "create_room");
                             json.put("title", title);
+                            json.put("max_players", selectedCap);
                             webSocket.send(json.toString());
                         } catch (JSONException ignored) {}
                     }
@@ -911,7 +948,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applyAndSaveCroppedAvatar(String croppedBase64) {
-        myAvatarBase64 = croppedBase64;
+        String compressedBase64 = croppedBase64;
+        try {
+            byte[] rawBytes = Base64.decode(croppedBase64, Base64.DEFAULT);
+            Bitmap rawBitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.length);
+            if (rawBitmap != null) {
+                int maxDim = 120;
+                int w = rawBitmap.getWidth();
+                int h = rawBitmap.getHeight();
+                float ratio = Math.min((float) maxDim / w, (float) maxDim / h);
+                if (ratio > 1.0f) ratio = 1.0f;
+                int finalW = Math.max(1, Math.round(ratio * w));
+                int finalH = Math.max(1, Math.round(ratio * h));
+
+                Bitmap scaled = Bitmap.createScaledBitmap(rawBitmap, finalW, finalH, true);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                scaled.compress(Bitmap.CompressFormat.JPEG, 75, baos);
+                compressedBase64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+            }
+        } catch (Exception ignored) {}
+
+        myAvatarBase64 = compressedBase64;
         sharedPreferences.edit().putString(KEY_AVATAR_BASE64, myAvatarBase64).apply();
 
         if (!TextUtils.isEmpty(myNickname)) {
@@ -989,6 +1046,9 @@ public class MainActivity extends AppCompatActivity {
         if (itemPanelRandomPick != null) {
             itemPanelRandomPick.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         }
+        if (itemPanelStartVote != null) {
+            itemPanelStartVote.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
+        }
 
         if (!TextUtils.isEmpty(myAvatarBase64)) {
             try {
@@ -1059,18 +1119,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private synchronized void connectWebSocket() {
+        if (isConnected || isConnecting) {
+            return;
+        }
+        isConnecting = true;
+
         if (webSocket != null) {
-            webSocket.close(1000, "重新连接");
+            WebSocket oldSocket = webSocket;
             webSocket = null;
+            try {
+                oldSocket.cancel();
+            } catch (Exception ignored) {}
         }
 
         runOnUiThread(() -> {
-            tvTitle.setText("数字化课堂 [讨论频道] (连接中...)");
+            tvTitle.setText(currentClassroomTitle + " (连接中...)");
             updateProfileDisplay();
         });
 
         if (httpClient == null) {
-            httpClient = new OkHttpClient();
+            httpClient = new OkHttpClient.Builder()
+                    .pingInterval(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .retryOnConnectionFailure(true)
+                    .build();
         }
 
         String fullUrl = "ws://" + currentServerIp + ":8000/ws/chat?room=lobby";
@@ -1091,35 +1162,49 @@ public class MainActivity extends AppCompatActivity {
         webSocket = httpClient.newWebSocket(request, new WebSocketListener() {
             @Override
             public void onOpen(WebSocket ws, Response response) {
+                if (ws != webSocket) {
+                    ws.cancel();
+                    return;
+                }
+
                 isConnected = true;
+                isConnecting = false;
                 reconnectHandler.removeCallbacks(reconnectRunnable);
                 GameSocketBridge.setWebSocket(ws);
 
                 runOnUiThread(() -> {
-                    tvTitle.setText("数字化课堂 [讨论频道] (在线)");
+                    tvTitle.setText(currentClassroomTitle + " (在线)");
                     updateProfileDisplay();
-
-                    if (!TextUtils.isEmpty(myAvatarBase64)) {
-                        try {
-                            JSONObject json = new JSONObject();
-                            json.put("type", "set_name");
-                            json.put("username", myNickname);
-                            json.put("role", myRole);
-                            json.put("token", myAuthToken);
-                            json.put("avatar", myAvatarBase64);
-                            ws.send(json.toString());
-                        } catch (JSONException ignored) {}
-                    }
                 });
             }
 
             @Override
             public void onMessage(WebSocket ws, String text) {
+                if (ws != webSocket) return;
+
                 runOnUiThread(() -> {
                     try {
                         JSONObject json = new JSONObject(text);
                         String type = json.optString("type", "chat");
 
+                        // 关键重构：即使在独立房间中，全局广播事件也优先由 MainActivity 自身无条件更新并持久保存
+                        if ("room_list".equals(type)) {
+                            parseAndRefreshRoomList(json.optJSONArray("rooms"));
+                            return;
+                        } else if ("roster_update".equals(type)) {
+                            parseAndRefreshRoster(json.optJSONArray("roster"));
+                            return;
+                        } else if ("classroom_title_update".equals(type)) {
+                            String newTitle = json.optString("classroom_title", "");
+                            if (!TextUtils.isEmpty(newTitle)) {
+                                currentClassroomTitle = newTitle;
+                                tvTitle.setText(currentClassroomTitle + (isConnected ? " (在线)" : ""));
+                                RosterDataBridge.setClassroomTitle(currentClassroomTitle);
+                            }
+                            return;
+                        }
+
+                        // 独立房间内部专属消息（history, room_state, rps_result, 组内chat等）路由给房间桥接器
                         if (isInIndependentRoom) {
                             GameSocketBridge.dispatchMessage(json);
                             return;
@@ -1129,31 +1214,49 @@ public class MainActivity extends AppCompatActivity {
                             isInIndependentRoom = true;
                             String rId = json.optString("room_id");
                             String rTitle = json.optString("title");
+                            String creator = json.optString("creator");
+                            int maxP = json.optInt("max_players", 4);
 
                             Intent intent = new Intent(MainActivity.this, GameRoomActivity.class);
                             intent.putExtra(GameRoomActivity.EXTRA_ROOM_ID, rId);
                             intent.putExtra(GameRoomActivity.EXTRA_ROOM_TITLE, rTitle);
+                            intent.putExtra(GameRoomActivity.EXTRA_CREATOR, creator);
+                            intent.putExtra(GameRoomActivity.EXTRA_MAX_PLAYERS, maxP);
                             startActivity(intent);
+                            return;
+                        }
+
+                        if ("vote_state".equals(type)) {
+                            latestVoteData = json;
+                            if (dialogManager.isVoteDialogShowing()) {
+                                dialogManager.renderVoteState(json, myRole, myNickname);
+                            }
                             return;
                         }
 
                         if ("buzz_started".equals(type)) {
                             String bTitle = json.optString("title", "快速抢答");
-                            showBuzzerWindow(bTitle);
+                            latestBuzzTitle = bTitle;
+                            latestBuzzActive = true;
+                            latestBuzzWinner = "";
+                            latestBuzzCostMs = 0;
+                            dialogManager.showBuzzerWindow(bTitle, myRole, true, "", 0, myNickname);
                             return;
                         }
 
                         if ("buzz_result".equals(type)) {
                             String winner = json.optString("winner");
                             int costMs = json.optInt("cost_ms", 100);
-                            renderBuzzResult(winner, costMs);
+                            latestBuzzActive = false;
+                            latestBuzzWinner = winner;
+                            latestBuzzCostMs = costMs;
+                            dialogManager.renderBuzzResult(winner, costMs, myRole, myNickname);
                             return;
                         }
 
                         if ("buzz_stopped".equals(type)) {
-                            if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
-                                currentBuzzerDialog.dismiss();
-                            }
+                            latestBuzzActive = false;
+                            dialogManager.dismissBuzzer();
                             return;
                         }
 
@@ -1166,11 +1269,18 @@ public class MainActivity extends AppCompatActivity {
                                     candidates.add(candArr.optString(i));
                                 }
                             }
-                            showRandomPickAnimationDialog(winner, candidates);
+                            dialogManager.showRandomPickAnimationDialog(winner, candidates, myNickname);
                             return;
                         }
 
                         if ("init_classroom_state".equals(type)) {
+                            String titleFromHub = json.optString("classroom_title", "");
+                            if (!TextUtils.isEmpty(titleFromHub)) {
+                                currentClassroomTitle = titleFromHub;
+                                tvTitle.setText(currentClassroomTitle + (isConnected ? " (在线)" : ""));
+                                RosterDataBridge.setClassroomTitle(currentClassroomTitle);
+                            }
+
                             String verifiedRole = json.optString("my_verified_role", "");
                             if (!TextUtils.isEmpty(verifiedRole)) {
                                 myRole = verifiedRole;
@@ -1181,8 +1291,17 @@ public class MainActivity extends AppCompatActivity {
                             isGlobalMuted = json.optBoolean("is_global_muted", false);
                             updateMuteUI();
 
-                            if (json.optBoolean("buzz_active", false)) {
-                                showBuzzerWindow("进行中的抢答");
+                            latestBuzzActive = json.optBoolean("buzz_active", false);
+                            JSONObject buzzData = json.optJSONObject("buzz_data");
+                            if (buzzData != null) {
+                                latestBuzzTitle = buzzData.optString("title", "随堂即时抢答");
+                                latestBuzzWinner = buzzData.optString("winner", "");
+                                latestBuzzCostMs = buzzData.optInt("cost_ms", 0);
+                            }
+
+                            JSONObject vData = json.optJSONObject("vote_data");
+                            if (vData != null) {
+                                latestVoteData = vData;
                             }
 
                             JSONArray historyArray = json.optJSONArray("messages");
@@ -1200,15 +1319,9 @@ public class MainActivity extends AppCompatActivity {
                                 recyclerViewChat.scrollToPosition(messageList.size() - 1);
                             }
 
-                            JSONArray rosterArr = json.optJSONArray("roster");
-                            parseAndRefreshRoster(rosterArr);
-
-                            JSONArray affairsArr = json.optJSONArray("affairs");
-                            parseAndRefreshAffairs(affairsArr);
-
-                        } else if ("roster_update".equals(type)) {
-                            JSONArray rosterArr = json.optJSONArray("roster");
-                            parseAndRefreshRoster(rosterArr);
+                            parseAndRefreshRoomList(json.optJSONArray("rooms"));
+                            parseAndRefreshRoster(json.optJSONArray("roster"));
+                            parseAndRefreshAffairs(json.optJSONArray("affairs"));
 
                         } else if ("affair_update".equals(type)) {
                             JSONArray affairsArr = json.optJSONArray("affairs");
@@ -1222,30 +1335,6 @@ public class MainActivity extends AppCompatActivity {
                             myRole = json.optString("role", DEFAULT_ROLE);
                             sharedPreferences.edit().putString(KEY_USER_ROLE, myRole).apply();
                             updateProfileDisplay();
-
-                        } else if ("room_list".equals(type)) {
-                            JSONArray roomsArr = json.optJSONArray("rooms");
-                            gameRoomDisplayList.clear();
-                            gameRoomIdList.clear();
-                            if (roomsArr != null) {
-                                for (int i = 0; i < roomsArr.length(); i++) {
-                                    JSONObject r = roomsArr.optJSONObject(i);
-                                    if (r != null) {
-                                        String rId = r.optString("room_id");
-                                        String rTitle = r.optString("title");
-                                        int curP = r.optInt("current_players", 0);
-                                        int maxP = r.optInt("max_players", 2);
-
-                                        gameRoomDisplayList.add("[互动小组] " + rTitle + " (" + curP + "/" + maxP + "人)");
-                                        gameRoomIdList.add(rId);
-                                    }
-                                }
-                            }
-                            if (gameRoomDisplayList.isEmpty()) {
-                                gameRoomDisplayList.add("暂无进行中的活动房间，点击上方可创建");
-                                gameRoomIdList.add("");
-                            }
-                            gameRoomAdapter.notifyDataSetChanged();
 
                         } else if ("avatar_update".equals(type)) {
                             String username = json.optString("username");
@@ -1269,6 +1358,12 @@ public class MainActivity extends AppCompatActivity {
                             if (newMsg.isMe() || isAtBottom) {
                                 recyclerViewChat.smoothScrollToPosition(messageList.size() - 1);
                             }
+
+                            if ("card_vote".equals(newMsg.getType())) {
+                                if (latestVoteData != null) {
+                                    dialogManager.showVoteWindow(latestVoteData, myRole, myNickname);
+                                }
+                            }
                         }
 
                     } catch (JSONException ignored) {}
@@ -1277,14 +1372,53 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(WebSocket ws, Throwable t, Response response) {
+                if (ws != webSocket) {
+                    return;
+                }
                 scheduleReconnect();
             }
 
             @Override
             public void onClosed(WebSocket ws, int code, String reason) {
+                if (ws != webSocket) {
+                    return;
+                }
                 scheduleReconnect();
             }
         });
+    }
+
+    private void parseAndRefreshRoomList(JSONArray roomsArr) {
+        gameRoomDisplayList.clear();
+        gameRoomIdList.clear();
+        if (roomsArr != null && roomsArr.length() > 0) {
+            for (int i = 0; i < roomsArr.length(); i++) {
+                JSONObject r = roomsArr.optJSONObject(i);
+                if (r != null) {
+                    String rId = r.optString("room_id");
+                    String rTitle = r.optString("title");
+                    String creator = r.optString("creator");
+                    int curP = r.optInt("current_players", 0);
+                    int maxP = r.optInt("max_players", 4);
+                    boolean hasTeacher = r.optBoolean("has_teacher", false);
+
+                    String statusText = (curP >= maxP) ? " [已满员]" : " [可加入]";
+                    String teacherTag = hasTeacher ? " (教师旁听中)" : "";
+                    String itemStr = "[协作组] " + rTitle + " (" + curP + "/" + maxP + "人)"
+                            + statusText + teacherTag + "\n创建者: " + creator;
+
+                    gameRoomDisplayList.add(itemStr);
+                    gameRoomIdList.add(rId);
+                }
+            }
+        }
+        if (gameRoomDisplayList.isEmpty()) {
+            gameRoomDisplayList.add("暂无进行中的协作小组，点击上方按钮创建");
+            gameRoomIdList.add("");
+        }
+        if (gameRoomAdapter != null) {
+            gameRoomAdapter.notifyDataSetChanged();
+        }
     }
 
     private void parseAndRefreshRoster(JSONArray rosterArr) {
@@ -1305,8 +1439,9 @@ public class MainActivity extends AppCompatActivity {
                 rosterUserList.add(new RosterUser(uName, uRole, uAvatar, uOnline, uMuted));
             }
         }
-        userListAdapter.notifyDataSetChanged();
-        tvOnlineCount.setText("班级总名册 (" + onlineCount + " 人在线 / " + rosterUserList.size() + " 人登记)");
+        tvOnlineCount.setText("小组大厅");
+
+        RosterDataBridge.updateRoster(rosterUserList);
     }
 
     private void parseAndRefreshAffairs(JSONArray affairsArr) {
@@ -1321,6 +1456,7 @@ public class MainActivity extends AppCompatActivity {
                 String aContent = a.optString("content");
                 String aType = a.optString("type", "notice");
                 String aPublisher = a.optString("publisher", "教师");
+                String aDeadline = a.optString("deadline", "");
                 long aTime = a.optLong("timestamp", System.currentTimeMillis());
                 int aCount = a.optInt("confirmed_count", 0);
 
@@ -1332,7 +1468,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                allAffairList.add(new AffairItem(aId, aTitle, aContent, aType, aPublisher, aTime, aCount, confirmedList));
+                allAffairList.add(new AffairItem(aId, aTitle, aContent, aType, aPublisher, aDeadline, aTime, aCount, confirmedList));
             }
         }
 
@@ -1341,8 +1477,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void scheduleReconnect() {
         isConnected = false;
+        isConnecting = false;
+
         runOnUiThread(() -> {
-            tvTitle.setText("数字化课堂 [讨论频道] (正在重连...)");
+            tvTitle.setText(currentClassroomTitle + " (正在重连...)");
             updateProfileDisplay();
         });
 
@@ -1377,27 +1515,25 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         isDestroyed = true;
         isConnected = false;
+        isConnecting = false;
         reconnectHandler.removeCallbacks(reconnectRunnable);
         GameSocketBridge.clearListener();
-        if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) {
-            currentBuzzerDialog.dismiss();
-        }
-        if (currentPickDialog != null && currentPickDialog.isShowing()) {
-            currentPickDialog.dismiss();
+        if (dialogManager != null) {
+            dialogManager.dismissAll();
         }
         if (webSocket != null) {
             webSocket.close(1000, "退出应用");
         }
     }
 
-    static class RosterUser {
-        String name;
-        String role;
-        String avatar;
-        boolean isOnline;
-        boolean isMuted;
+    public static class RosterUser {
+        public String name;
+        public String role;
+        public String avatar;
+        public boolean isOnline;
+        public boolean isMuted;
 
-        RosterUser(String name, String role, String avatar, boolean isOnline, boolean isMuted) {
+        public RosterUser(String name, String role, String avatar, boolean isOnline, boolean isMuted) {
             this.name = name;
             this.role = role;
             this.avatar = avatar;

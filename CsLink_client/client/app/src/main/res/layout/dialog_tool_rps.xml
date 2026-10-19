@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:padding="20dp"
+    android:gravity="center_horizontal">
+
+    <!-- 1. 顶部模式说明 -->
+    <TextView
+        android:id="@+id/tvToolRpsTopic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="猜拳 (三局两胜)"
+        android:textColor="#1E88E5"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <!-- 2. 比分牌展示栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="#F8FAFC"
+        android:padding="12dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- 红方 (发起方) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvP1Name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="红方"
+                android:textColor="#DC2626"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvP1Score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="0"
+                android:textColor="#1F2937"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 回合指示 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="VS"
+                android:textColor="#9CA3AF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCurrentRoundIndicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="#E2E8F0"
+                android:paddingStart="6dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="2dp"
+                android:text="第 1 局"
+                android:textColor="#475569"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- 蓝方 (应战方) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvP2Name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="蓝方"
+                android:textColor="#2563EB"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvP2Score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="0"
+                android:textColor="#1F2937"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 3. 出拳与就位状态说明 -->
+    <TextView
+        android:id="@+id/tvToolRpsStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="等待对手加入..."
+        android:textColor="#64748B"
+        android:textSize="12sp" />
+
+    <!-- 双方出拳牌面状态 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvToolP1Status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#F1F5F9"
+            android:gravity="center"
+            android:padding="8dp"
+            android:text="我方：思考中..."
+            android:textColor="#334155"
+            android:textSize="12sp" />
+
+        <View
+            android:layout_width="8dp"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/tvToolP2Status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#F1F5F9"
+            android:gravity="center"
+            android:padding="8dp"
+            android:text="对方：等待加入..."
+            android:textColor="#334155"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvToolRpsResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:text="准备出拳"
+        android:textColor="#059669"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <!-- 4. 出拳选择区 -->
+    <LinearLayout
+        android:id="@+id/layoutChoiceButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnChoiceRock"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:backgroundTint="#3B82F6"
+            android:text="石头"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btnChoiceScissors"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:backgroundTint="#10B981"
+            android:text="剪刀"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btnChoicePaper"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:backgroundTint="#F59E0B"
+            android:text="布"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- 5. 底部操作栏（彻底移除重新开始按钮） -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnNextRound"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#2563EB"
+            android:text="下一局"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnCloseToolRps"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:backgroundTint="#E2E8F0"
+            android:text="关闭"
+            android:textColor="#334155"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</LinearLayout>

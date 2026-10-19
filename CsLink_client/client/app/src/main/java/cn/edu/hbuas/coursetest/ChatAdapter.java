@@ -1,176 +1,237 @@
 package cn.edu.hbuas.coursetest;
 
-import android.app.Dialog;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import cn.edu.hbuas.coursetest.R;
 
-public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
+public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+
+    public interface OnInteractiveCardClickListener {
+        void onCardClick(String cardType, String title);
+    }
+
+    public interface OnImageClickListener {
+        void onImageClick(String imageBase64);
+    }
+
+    private static final int TYPE_MESSAGE = 1;
+    private static final int TYPE_CARD = 2;
 
     private final List<ChatMessage> messageList;
-    private final Map<String, String> avatarMap;
+    private final Map<String, String> userAvatarMap;
+    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+    private OnInteractiveCardClickListener cardClickListener;
+    private OnImageClickListener imageClickListener;
 
-    public ChatAdapter(List<ChatMessage> messageList, Map<String, String> avatarMap) {
+    public ChatAdapter(List<ChatMessage> messageList, Map<String, String> userAvatarMap) {
         this.messageList = messageList;
-        this.avatarMap = avatarMap;
+        this.userAvatarMap = userAvatarMap;
+    }
+
+    public void setOnInteractiveCardClickListener(OnInteractiveCardClickListener listener) {
+        this.cardClickListener = listener;
+    }
+
+    public void setOnImageClickListener(OnImageClickListener listener) {
+        this.imageClickListener = listener;
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        ChatMessage msg = messageList.get(position);
+        String type = msg.getType();
+        if ("card_buzz".equals(type) || "card_vote".equals(type) || "card_rps".equals(type)) {
+            return TYPE_CARD;
+        }
+        return TYPE_MESSAGE;
     }
 
     @NonNull
     @Override
-    public ChatViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_chat_message, parent, false);
-        return new ChatViewHolder(view);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+        if (viewType == TYPE_CARD) {
+            View view = inflater.inflate(R.layout.item_chat_card, parent, false);
+            return new CardViewHolder(view);
+        }
+        View view = inflater.inflate(R.layout.item_chat_message, parent, false);
+        return new MessageViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
-        ChatMessage message = messageList.get(position);
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        ChatMessage msg = messageList.get(position);
 
-        if ("system".equals(message.getType())) {
-            holder.tvSystemNotice.setVisibility(View.VISIBLE);
-            holder.layoutOtherMsg.setVisibility(View.GONE);
-            holder.layoutMyMsg.setVisibility(View.GONE);
-            holder.tvSystemNotice.setText("[系统 " + message.getFormattedTime() + "] " + message.getContent());
-        } else {
-            String latestAvatar = avatarMap.get(message.getSender());
-            if (TextUtils.isEmpty(latestAvatar)) {
-                latestAvatar = message.getAvatar();
+        if (holder instanceof CardViewHolder) {
+            bindCardView((CardViewHolder) holder, msg);
+        } else if (holder instanceof MessageViewHolder) {
+            bindMessageView((MessageViewHolder) holder, msg);
+        }
+    }
+
+    private void bindCardView(CardViewHolder vh, ChatMessage msg) {
+        vh.tvCardTitle.setText(msg.getContent());
+        vh.tvCardTime.setText(timeFormat.format(new Date(msg.getTimestamp())));
+
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setCornerRadius(6f);
+
+        if ("card_buzz".equals(msg.getType())) {
+            vh.tvCardBadge.setText("随堂抢答");
+            vh.tvCardBadge.setTextColor(Color.parseColor("#DC2626"));
+            badgeBg.setColor(Color.parseColor("#FEE2E2"));
+            vh.btnEnterCardAction.setText("参与抢答");
+        } else if ("card_vote".equals(msg.getType())) {
+            vh.tvCardBadge.setText("随堂投票");
+            vh.tvCardBadge.setTextColor(Color.parseColor("#15803D"));
+            badgeBg.setColor(Color.parseColor("#DCFCE7"));
+            vh.btnEnterCardAction.setText("参与投票");
+        } else if ("card_rps".equals(msg.getType())) {
+            vh.tvCardBadge.setText("猜拳");
+            vh.tvCardBadge.setTextColor(Color.parseColor("#0369A1"));
+            badgeBg.setColor(Color.parseColor("#E0F2FE"));
+            vh.btnEnterCardAction.setText("进入猜拳");
+        }
+        vh.tvCardBadge.setBackground(badgeBg);
+
+        View.OnClickListener clickListener = v -> {
+            if (cardClickListener != null) {
+                cardClickListener.onCardClick(msg.getType(), msg.getContent());
             }
+        };
+        vh.btnEnterCardAction.setOnClickListener(clickListener);
+        vh.layoutCardContent.setOnClickListener(clickListener);
+    }
 
-            if (message.isMe()) {
-                holder.tvSystemNotice.setVisibility(View.GONE);
-                holder.layoutOtherMsg.setVisibility(View.GONE);
-                holder.layoutMyMsg.setVisibility(View.VISIBLE);
+    private void bindMessageView(MessageViewHolder vh, ChatMessage msg) {
+        String type = msg.getType();
+        String timeStr = timeFormat.format(new Date(msg.getTimestamp()));
 
-                holder.tvMySender.setText(message.getSender());
-                holder.tvMyTime.setText(message.getFormattedTime());
-                bindRoleBadge(holder.tvMyRoleBadge, message.getRole());
-                loadAvatar(holder.ivMyAvatar, latestAvatar);
+        // 1. 系统通知消息
+        if ("system".equals(type)) {
+            vh.tvSystemNotice.setVisibility(View.VISIBLE);
+            vh.tvSystemNotice.setText(msg.getContent());
+            vh.layoutOtherMsg.setVisibility(View.GONE);
+            vh.layoutMyMsg.setVisibility(View.GONE);
+            return;
+        }
 
-                if ("image".equals(message.getType())) {
-                    holder.tvMyContent.setVisibility(View.GONE);
-                    holder.ivMyImage.setVisibility(View.VISIBLE);
-                    loadImage(holder.ivMyImage, message.getContent());
-                    holder.ivMyImage.setOnClickListener(v -> showFullImageDialog(v.getContext(), message.getContent()));
-                } else {
-                    holder.tvMyContent.setVisibility(View.VISIBLE);
-                    holder.ivMyImage.setVisibility(View.GONE);
-                    holder.tvMyContent.setText(message.getContent());
-                }
+        vh.tvSystemNotice.setVisibility(View.GONE);
+
+        // 2. 我发送的消息（靠右）
+        if (msg.isMe()) {
+            vh.layoutMyMsg.setVisibility(View.VISIBLE);
+            vh.layoutOtherMsg.setVisibility(View.GONE);
+
+            vh.tvMySender.setText(msg.getSender());
+            vh.tvMyTime.setText(timeStr);
+            bindRoleBadge(vh.tvMyRoleBadge, msg.getRole());
+            renderAvatar(vh.ivMyAvatar, msg.getSender(), msg.getAvatar());
+
+            if ("image".equals(type)) {
+                vh.tvMyContent.setVisibility(View.GONE);
+                vh.ivMyImage.setVisibility(View.VISIBLE);
+                renderBase64Image(vh.ivMyImage, msg.getContent());
+                vh.ivMyImage.setOnClickListener(v -> {
+                    if (imageClickListener != null && !TextUtils.isEmpty(msg.getContent())) {
+                        imageClickListener.onImageClick(msg.getContent());
+                    }
+                });
             } else {
-                holder.tvSystemNotice.setVisibility(View.GONE);
-                holder.layoutOtherMsg.setVisibility(View.VISIBLE);
-                holder.layoutMyMsg.setVisibility(View.GONE);
+                vh.ivMyImage.setVisibility(View.GONE);
+                vh.tvMyContent.setVisibility(View.VISIBLE);
+                vh.tvMyContent.setText(msg.getContent());
+            }
+        }
+        // 3. 他人发送的消息（靠左）
+        else {
+            vh.layoutOtherMsg.setVisibility(View.VISIBLE);
+            vh.layoutMyMsg.setVisibility(View.GONE);
 
-                holder.tvOtherSender.setText(message.getSender());
-                holder.tvOtherTime.setText(message.getFormattedTime());
-                bindRoleBadge(holder.tvOtherRoleBadge, message.getRole());
-                loadAvatar(holder.ivOtherAvatar, latestAvatar);
+            vh.tvOtherSender.setText(msg.getSender());
+            vh.tvOtherTime.setText(timeStr);
+            bindRoleBadge(vh.tvOtherRoleBadge, msg.getRole());
+            renderAvatar(vh.ivOtherAvatar, msg.getSender(), msg.getAvatar());
 
-                if ("image".equals(message.getType())) {
-                    holder.tvOtherContent.setVisibility(View.GONE);
-                    holder.ivOtherImage.setVisibility(View.VISIBLE);
-                    loadImage(holder.ivOtherImage, message.getContent());
-                    holder.ivOtherImage.setOnClickListener(v -> showFullImageDialog(v.getContext(), message.getContent()));
-                } else {
-                    holder.tvOtherContent.setVisibility(View.VISIBLE);
-                    holder.ivOtherImage.setVisibility(View.GONE);
-                    holder.tvOtherContent.setText(message.getContent());
-                }
+            if ("image".equals(type)) {
+                vh.tvOtherContent.setVisibility(View.GONE);
+                vh.ivOtherImage.setVisibility(View.VISIBLE);
+                renderBase64Image(vh.ivOtherImage, msg.getContent());
+                vh.ivOtherImage.setOnClickListener(v -> {
+                    if (imageClickListener != null && !TextUtils.isEmpty(msg.getContent())) {
+                        imageClickListener.onImageClick(msg.getContent());
+                    }
+                });
+            } else {
+                vh.ivOtherImage.setVisibility(View.GONE);
+                vh.tvOtherContent.setVisibility(View.VISIBLE);
+                vh.tvOtherContent.setText(msg.getContent());
             }
         }
     }
 
-    private void bindRoleBadge(TextView badgeView, String role) {
-        if (badgeView == null) return;
-        badgeView.setVisibility(View.VISIBLE);
+    private void bindRoleBadge(TextView tvBadge, String role) {
         if ("teacher".equalsIgnoreCase(role)) {
-            badgeView.setText("教师");
-            badgeView.setBackgroundColor(Color.parseColor("#FEF3C7")); // 金黄底色
-            badgeView.setTextColor(Color.parseColor("#B45309"));       // 深棕字色
+            tvBadge.setVisibility(View.VISIBLE);
+            tvBadge.setText("教师");
+            tvBadge.setBackgroundColor(Color.parseColor("#FEF3C7"));
+            tvBadge.setTextColor(Color.parseColor("#B45309"));
         } else if ("monitor".equalsIgnoreCase(role)) {
-            badgeView.setText("班长");
-            badgeView.setBackgroundColor(Color.parseColor("#DCFCE7")); // 浅绿底色
-            badgeView.setTextColor(Color.parseColor("#15803D"));       // 深绿字色
+            tvBadge.setVisibility(View.VISIBLE);
+            tvBadge.setText("班长");
+            tvBadge.setBackgroundColor(Color.parseColor("#E0E7FF"));
+            tvBadge.setTextColor(Color.parseColor("#4338CA"));
         } else {
-            badgeView.setText("学生");
-            badgeView.setBackgroundColor(Color.parseColor("#E0E7FF")); // 浅蓝底色
-            badgeView.setTextColor(Color.parseColor("#4338CA"));       // 靛蓝字色
+            tvBadge.setVisibility(View.GONE);
         }
     }
 
-    private void loadAvatar(ImageView imageView, String avatarBase64) {
-        if (!TextUtils.isEmpty(avatarBase64)) {
+    private void renderAvatar(ImageView iv, String sender, String avatarBase64) {
+        String effectiveAvatar = avatarBase64;
+        if (TextUtils.isEmpty(effectiveAvatar) && userAvatarMap != null) {
+            effectiveAvatar = userAvatarMap.get(sender);
+        }
+        if (!TextUtils.isEmpty(effectiveAvatar)) {
             try {
-                byte[] decodedBytes = Base64.decode(avatarBase64, Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                byte[] bytes = Base64.decode(effectiveAvatar, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                 if (bitmap != null) {
-                    imageView.setImageBitmap(bitmap);
+                    iv.setImageBitmap(bitmap);
                     return;
                 }
             } catch (Exception ignored) {}
         }
-        imageView.setImageResource(R.mipmap.ic_launcher_round);
+        iv.setImageResource(R.mipmap.ic_launcher_round);
     }
 
-    private void loadImage(ImageView imageView, String imageBase64) {
-        if (!TextUtils.isEmpty(imageBase64)) {
+    private void renderBase64Image(ImageView iv, String imgBase64) {
+        if (!TextUtils.isEmpty(imgBase64)) {
             try {
-                byte[] decodedBytes = Base64.decode(imageBase64, Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                byte[] bytes = Base64.decode(imgBase64, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                 if (bitmap != null) {
-                    imageView.setImageBitmap(bitmap);
+                    iv.setImageBitmap(bitmap);
                     return;
                 }
             } catch (Exception ignored) {}
         }
-        imageView.setImageResource(R.mipmap.ic_launcher);
-    }
-
-    private void showFullImageDialog(Context context, String base64) {
-        if (TextUtils.isEmpty(base64)) return;
-
-        try {
-            byte[] decodedBytes = Base64.decode(base64, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            if (bitmap == null) return;
-
-            Dialog dialog = new Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-            ImageView fullImageView = new ImageView(context);
-            fullImageView.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-            ));
-            fullImageView.setBackgroundColor(Color.BLACK);
-            fullImageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            fullImageView.setImageBitmap(bitmap);
-            fullImageView.setOnClickListener(v -> dialog.dismiss());
-
-            dialog.setContentView(fullImageView);
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
-            }
-            dialog.show();
-        } catch (Exception ignored) {}
     }
 
     @Override
@@ -178,9 +239,27 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         return messageList.size();
     }
 
-    static class ChatViewHolder extends RecyclerView.ViewHolder {
+    static class CardViewHolder extends RecyclerView.ViewHolder {
+        View layoutCardContent;
+        TextView tvCardBadge;
+        TextView tvCardTime;
+        TextView tvCardTitle;
+        Button btnEnterCardAction;
+
+        CardViewHolder(View itemView) {
+            super(itemView);
+            layoutCardContent = itemView.findViewById(R.id.layoutCardContent);
+            tvCardBadge = itemView.findViewById(R.id.tvCardBadge);
+            tvCardTime = itemView.findViewById(R.id.tvCardTime);
+            tvCardTitle = itemView.findViewById(R.id.tvCardTitle);
+            btnEnterCardAction = itemView.findViewById(R.id.btnEnterCardAction);
+        }
+    }
+
+    static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView tvSystemNotice;
 
+        // 他人组件
         LinearLayout layoutOtherMsg;
         ImageView ivOtherAvatar;
         TextView tvOtherSender;
@@ -189,15 +268,16 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         TextView tvOtherContent;
         ImageView ivOtherImage;
 
+        // 自己组件
         LinearLayout layoutMyMsg;
-        ImageView ivMyAvatar;
-        TextView tvMySender;
-        TextView tvMyRoleBadge;
         TextView tvMyTime;
+        TextView tvMyRoleBadge;
+        TextView tvMySender;
         TextView tvMyContent;
         ImageView ivMyImage;
+        ImageView ivMyAvatar;
 
-        public ChatViewHolder(@NonNull View itemView) {
+        MessageViewHolder(View itemView) {
             super(itemView);
             tvSystemNotice = itemView.findViewById(R.id.tvSystemNotice);
 
@@ -210,12 +290,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             ivOtherImage = itemView.findViewById(R.id.ivOtherImage);
 
             layoutMyMsg = itemView.findViewById(R.id.layoutMyMsg);
-            ivMyAvatar = itemView.findViewById(R.id.ivMyAvatar);
-            tvMySender = itemView.findViewById(R.id.tvMySender);
-            tvMyRoleBadge = itemView.findViewById(R.id.tvMyRoleBadge);
             tvMyTime = itemView.findViewById(R.id.tvMyTime);
+            tvMyRoleBadge = itemView.findViewById(R.id.tvMyRoleBadge);
+            tvMySender = itemView.findViewById(R.id.tvMySender);
             tvMyContent = itemView.findViewById(R.id.tvMyContent);
             ivMyImage = itemView.findViewById(R.id.ivMyImage);
+            ivMyAvatar = itemView.findViewById(R.id.ivMyAvatar);
         }
     }
 }

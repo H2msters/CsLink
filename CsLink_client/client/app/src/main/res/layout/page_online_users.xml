@@ -9,7 +9,7 @@
     android:padding="12dp"
     android:visibility="gone">
 
-    <!-- 顶部操作栏：大厅状态与快速创建房间 -->
+    <!-- 顶部操作栏：大厅标题与创建小组 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -21,9 +21,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="讨论区在线 (0人)"
+            android:text="小组大厅"
             android:textColor="#1F2937"
-            android:textSize="15sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <Button
@@ -31,41 +31,23 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:backgroundTint="#1E88E5"
-            android:text="创建游戏房"
+            android:text="创建小组"
             android:textColor="#FFFFFF"
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- 游戏/活动房间列表区域 -->
+    <!-- 协作小组列表（铺满剩余空间） -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="6dp"
-        android:text="联机对战活动室"
+        android:text="小组列表"
         android:textColor="#6B7280"
         android:textSize="13sp" />
 
     <ListView
         android:id="@+id/lvGameRooms"
-        android:layout_width="match_parent"
-        android:layout_height="140dp"
-        android:background="#FFFFFF"
-        android:divider="#E0E4E8"
-        android:dividerHeight="1dp" />
-
-    <!-- 当前讨论区在线成员 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="6dp"
-        android:text="当前讨论区成员"
-        android:textColor="#6B7280"
-        android:textSize="13sp" />
-
-    <ListView
-        android:id="@+id/lvOnlineUsers"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"

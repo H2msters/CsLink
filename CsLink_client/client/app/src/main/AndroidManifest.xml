@@ -36,7 +36,13 @@
             android:name=".CropAvatarActivity"
             android:exported="false" />
 
-        <!-- 注册全新独立房间 Activity -->
+        <!-- 注册独立班级成员名册 Activity -->
+        <activity
+            android:name=".RosterActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- 注册独立互动房间 Activity -->
         <activity
             android:name=".GameRoomActivity"
             android:windowSoftInputMode="adjustResize"
