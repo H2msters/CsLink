@@ -167,7 +167,6 @@ async def websocket_chat_endpoint(
             msg_type = data.get("type", "chat")
             sender_record = manager.roster.get(actual_name, {})
             current_user_role = sender_record.get("role", actual_role)
-            # 动态寻址：获取当前用户实时所在的房间，彻底避免局部变量与多协程脱节
             current_room = manager.get_room_for_ws(websocket)
 
             # ---------------- 客户端返回大厅时的即时刷新指令 ----------------
@@ -198,7 +197,6 @@ async def websocket_chat_endpoint(
                     game_type="rps"
                 )
 
-                # 将用户移入新组
                 current_room = manager.move_user_to_room(websocket, created_room.room_id, {
                     "name": actual_name,
                     "role": current_user_role,
@@ -315,7 +313,6 @@ async def websocket_chat_endpoint(
                     }
                     await broadcast_to_room(old_room, leave_notice)
 
-                    # 平滑移回 lobby
                     manager.move_user_to_room(websocket, "lobby", {
                         "name": actual_name,
                         "role": current_user_role,
@@ -342,7 +339,6 @@ async def websocket_chat_endpoint(
                 is_teacher = (current_user_role == "teacher")
                 success, deleted_room = manager.disband_room(target_room_id, actual_name, is_teacher)
                 if success and deleted_room:
-                    # 全员被移回 lobby 后，向原成员下发解散通知
                     disband_payload = {
                         "type": "room_disbanded",
                         "room_id": target_room_id,
@@ -355,7 +351,33 @@ async def websocket_chat_endpoint(
 
             # ---------------- 教师管控指令 ----------------
             if current_user_role == "teacher":
-                if msg_type == "set_classroom_title":
+                # 教师奖励学生表现加分
+                if msg_type == "award_score":
+                    target = data.get("target_student", "").strip()
+                    delta = int(data.get("delta", 1))
+                    reason = data.get("reason", "课堂表现优异").strip()
+
+                    if target:
+                        new_score = db.add_user_score(target, delta)
+                        if target in manager.roster:
+                            manager.roster[target]["score"] = new_score
+
+                        await broadcast_roster_update()
+
+                        notice_msg = {
+                            "type": "system",
+                            "sender": "系统",
+                            "role": "teacher",
+                            "avatar": "",
+                            "content": f"[课堂积分] 教师奖励【{target}】+{delta}分（{reason}），当前总分：{new_score}分",
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        if "lobby" in manager.rooms:
+                            manager.rooms["lobby"].add_message(notice_msg)
+                        await broadcast_to_all_rooms(notice_msg)
+                    continue
+
+                elif msg_type == "set_classroom_title":
                     new_title = data.get("title", "").strip()
                     if new_title:
                         manager.set_classroom_title(new_title)
@@ -593,7 +615,7 @@ async def websocket_chat_endpoint(
                     })
                 continue
 
-            # ---------------- 组内互动决策（气泡卡片与对决路由） ----------------
+            # ---------------- 组内猜拳对决 ----------------
             if msg_type == "initiate_game":
                 curr_room = manager.get_room_for_ws(websocket)
                 if curr_room and curr_room.room_id != "lobby":
@@ -635,13 +657,11 @@ async def websocket_chat_endpoint(
                 if curr_room and curr_room.room_id != "lobby":
                     action_res = curr_room.game.handle_action(actual_name, "choice", {"choice": data.get("choice")})
                     
-                    # 局数决出胜负
                     if action_res.get("type") == "match_over":
                         await broadcast_to_room(curr_room, {
                             "type": "rps_state",
                             "state": action_res.get("state")
                         })
-                        # 核心：自动向小组公屏落盘一条结论通报
                         summary_msg = {
                             "type": "system",
                             "sender": "系统",
@@ -652,7 +672,6 @@ async def websocket_chat_endpoint(
                         }
                         curr_room.add_message(summary_msg)
                         await broadcast_to_room(curr_room, summary_msg)
-
                     else:
                         await broadcast_to_room(curr_room, {
                             "type": "rps_state",

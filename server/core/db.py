@@ -14,17 +14,24 @@ def init_db():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # 1. 班级花名册成员表
+        # 1. 班级花名册成员表 (包含 score 积分字段)
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             name TEXT PRIMARY KEY,
             role TEXT NOT NULL,
             avatar TEXT DEFAULT '',
             is_muted INTEGER DEFAULT 0,
-            last_seen INTEGER NOT NULL
+            last_seen INTEGER NOT NULL,
+            score INTEGER DEFAULT 0
         )
         """)
         
+        # 检查现有老表是否缺失 score 字段，若缺失则自动热补丁添加
+        cursor.execute("PRAGMA table_info(users)")
+        user_cols = [row["name"] for row in cursor.fetchall()]
+        if "score" not in user_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN score INTEGER DEFAULT 0")
+
         # 2. 班级事务表（包含 deadline 截止时间）
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS affairs (
@@ -130,7 +137,7 @@ def load_all_users() -> Dict[str, dict]:
     users = {}
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT name, role, avatar, is_muted, last_seen FROM users")
+        cursor.execute("SELECT name, role, avatar, is_muted, last_seen, score FROM users")
         for row in cursor.fetchall():
             users[row["name"]] = {
                 "name": row["name"],
@@ -138,7 +145,8 @@ def load_all_users() -> Dict[str, dict]:
                 "avatar": row["avatar"],
                 "is_online": False,
                 "is_muted": bool(row["is_muted"]),
-                "last_seen": row["last_seen"]
+                "last_seen": row["last_seen"],
+                "score": row["score"] if row["score"] is not None else 0
             }
     return users
 
@@ -161,6 +169,16 @@ def rename_user(old_name: str, new_name: str):
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET name = ? WHERE name = ?", (new_name, old_name))
         conn.commit()
+
+def add_user_score(name: str, delta: int = 1) -> int:
+    """增加或调整学生积分并返回最新总分"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET score = coalesce(score, 0) + ? WHERE name = ?", (delta, name))
+        cursor.execute("SELECT score FROM users WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        conn.commit()
+        return row["score"] if row and row["score"] is not None else 0
 
 # ---------------- 班级事务持久化 ----------------
 

@@ -373,7 +373,6 @@ public class MainActivity extends AppCompatActivity {
         btnTabAffairs = findViewById(R.id.btnTabAffairs);
         btnTabProfile = findViewById(R.id.btnTabProfile);
 
-        // 规范重置底栏首个 Tab 文本为“功能区”
         if (btnTabUsers != null) {
             btnTabUsers.setText("功能区");
         }
@@ -461,7 +460,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // 班级图书角点击入口
         if (cardBookCorner != null) {
             cardBookCorner.setOnClickListener(v -> {
                 Intent intent = new Intent(MainActivity.this, BookCornerActivity.class);
@@ -1446,9 +1444,10 @@ public class MainActivity extends AppCompatActivity {
                 String uAvatar = u.optString("avatar", "");
                 boolean uOnline = u.optBoolean("is_online", false);
                 boolean uMuted = u.optBoolean("is_muted", false);
+                int uScore = u.optInt("score", 0);
                 if (uOnline) onlineCount++;
 
-                rosterUserList.add(new RosterUser(uName, uRole, uAvatar, uOnline, uMuted));
+                rosterUserList.add(new RosterUser(uName, uRole, uAvatar, uOnline, uMuted, uScore));
             }
         }
         tvOnlineCount.setText("小组大厅");
@@ -1544,13 +1543,19 @@ public class MainActivity extends AppCompatActivity {
         public String avatar;
         public boolean isOnline;
         public boolean isMuted;
+        public int score;
 
-        public RosterUser(String name, String role, String avatar, boolean isOnline, boolean isMuted) {
+        public RosterUser(String name, String role, String avatar, boolean isOnline, boolean isMuted, int score) {
             this.name = name;
             this.role = role;
             this.avatar = avatar;
             this.isOnline = isOnline;
             this.isMuted = isMuted;
+            this.score = score;
+        }
+
+        public RosterUser(String name, String role, String avatar, boolean isOnline, boolean isMuted) {
+            this(name, role, avatar, isOnline, isMuted, 0);
         }
     }
 }

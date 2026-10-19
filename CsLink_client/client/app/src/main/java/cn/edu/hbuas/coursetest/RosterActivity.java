@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsCompat;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class RosterActivity extends AppCompatActivity implements RosterDataBridge.OnRosterChangeListener {
@@ -34,6 +35,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
 
     private String myNickname = "";
     private String myRole = "student";
+    private boolean isHonorRollMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,9 +76,11 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
         btnEditClassName.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         btnEditClassName.setOnClickListener(v -> showEditClassroomTitleDialog());
 
-        if (!isTeacher) {
-            tvRosterHint.setText("班级在线出勤状态实时同步中");
-        }
+        // 点击提示栏即可在“默认名册”与“积分光荣榜”之间切换排序
+        tvRosterHint.setOnClickListener(v -> {
+            isHonorRollMode = !isHonorRollMode;
+            applySortAndRefresh();
+        });
     }
 
     private void initData() {
@@ -84,7 +88,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
         displayRosterList = new ArrayList<>(RosterDataBridge.getCachedRoster());
         rosterAdapter = new RosterAdapter(this, displayRosterList);
         lvRosterMembers.setAdapter(rosterAdapter);
-        refreshSummaryHeader();
+        applySortAndRefresh();
 
         lvRosterMembers.setOnItemClickListener((parent, view, position, id) -> {
             if (position >= 0 && position < displayRosterList.size()) {
@@ -92,10 +96,40 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
                 if ("teacher".equalsIgnoreCase(myRole)) {
                     showTeacherManageStudentDialog(targetUser);
                 } else {
-                    Toast.makeText(this, targetUser.name + " · " + (targetUser.isOnline ? "在线" : "离线"), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, targetUser.name + " · 积分: " + targetUser.score + " · " + (targetUser.isOnline ? "在线" : "离线"), Toast.LENGTH_SHORT).show();
                 }
             }
         });
+    }
+
+    private void applySortAndRefresh() {
+        if (displayRosterList == null) return;
+
+        if (isHonorRollMode) {
+            // 光荣榜：按积分降序排序
+            Collections.sort(displayRosterList, (u1, u2) -> {
+                if (u2.score != u1.score) {
+                    return Integer.compare(u2.score, u1.score);
+                }
+                return u1.name.compareTo(u2.name);
+            });
+            tvRosterHint.setText("当前模式：积分光荣榜 (点击切换为默认名册)");
+        } else {
+            // 默认排序：教师在前，在线学生居中，离线学生在后
+            Collections.sort(displayRosterList, (u1, u2) -> {
+                boolean t1 = "teacher".equalsIgnoreCase(u1.role);
+                boolean t2 = "teacher".equalsIgnoreCase(u2.role);
+                if (t1 != t2) return t1 ? -1 : 1;
+                if (u1.isOnline != u2.isOnline) return u1.isOnline ? -1 : 1;
+                return u1.name.compareTo(u2.name);
+            });
+            tvRosterHint.setText("当前模式：默认名册 (点击切换为积分光荣榜)");
+        }
+
+        if (rosterAdapter != null) {
+            rosterAdapter.notifyDataSetChanged();
+        }
+        refreshSummaryHeader();
     }
 
     private void showEditClassroomTitleDialog() {
@@ -126,7 +160,11 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
         for (MainActivity.RosterUser u : displayRosterList) {
             if (u.isOnline) onlineCount++;
         }
-        tvRosterSummary.setText("班级总名册 (" + onlineCount + " 人在线 / " + displayRosterList.size() + " 人登记)");
+        if (isHonorRollMode) {
+            tvRosterSummary.setText("课堂表现光荣榜 (" + displayRosterList.size() + " 人参与评比)");
+        } else {
+            tvRosterSummary.setText("班级总名册 (" + onlineCount + " 人在线 / " + displayRosterList.size() + " 人登记)");
+        }
     }
 
     @Override
@@ -136,10 +174,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
             if (latestRoster != null) {
                 displayRosterList.addAll(latestRoster);
             }
-            if (rosterAdapter != null) {
-                rosterAdapter.notifyDataSetChanged();
-            }
-            refreshSummaryHeader();
+            applySortAndRefresh();
         });
     }
 
@@ -159,18 +194,47 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
         }
 
         String muteActionText = target.isMuted ? "解除禁言" : "单独禁言";
-        String[] options = {muteActionText, "变更角色身份 (学生/班长)", "修改姓名或学号"};
+        String[] options = {"奖励积分 (+1分)", muteActionText, "变更角色身份 (学生/班长)", "修改姓名或学号"};
 
         new AlertDialog.Builder(this)
-                .setTitle("管理学生：" + target.name)
+                .setTitle("管理学生：" + target.name + " (当前积分: " + target.score + ")")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
-                        sendAdminManageCommand(target.name, "toggle_mute", null, null);
+                        showAwardScoreDialog(target);
                     } else if (which == 1) {
-                        showChangeRoleSubDialog(target);
+                        sendAdminManageCommand(target.name, "toggle_mute", null, null);
                     } else if (which == 2) {
+                        showChangeRoleSubDialog(target);
+                    } else if (which == 3) {
                         showRenameStudentSubDialog(target);
                     }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showAwardScoreDialog(MainActivity.RosterUser target) {
+        final EditText etReason = new EditText(this);
+        etReason.setHint("输入加分理由 (如: 积极回答问题)");
+        etReason.setText("积极回答问题");
+
+        new AlertDialog.Builder(this)
+                .setTitle("奖励学生表现")
+                .setMessage("为【" + target.name + "】增加 1 积分")
+                .setView(etReason)
+                .setPositiveButton("确认奖励", (dialog, which) -> {
+                    String reason = etReason.getText().toString().trim();
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "award_score");
+                        json.put("target_student", target.name);
+                        json.put("delta", 1);
+                        json.put("reason", TextUtils.isEmpty(reason) ? "课堂表现优异" : reason);
+                        GameSocketBridge.sendJson(json);
+                        target.score += 1;
+                        applySortAndRefresh();
+                        Toast.makeText(this, "已为 " + target.name + " +1分", Toast.LENGTH_SHORT).show();
+                    } catch (JSONException ignored) {}
                 })
                 .setNegativeButton("取消", null)
                 .show();
