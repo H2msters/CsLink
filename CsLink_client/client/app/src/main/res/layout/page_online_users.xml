@@ -111,7 +111,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:text="点击进入阅读与下载专业 PDF 文献"
+                android:text="点击进入图书阅读与下载"
                 android:textColor="#6B7280"
                 android:textSize="12sp" />
         </LinearLayout>

@@ -71,10 +71,10 @@ public class RosterAdapter extends ArrayAdapter<MainActivity.RosterUser> {
         MainActivity.RosterUser user = users.get(position);
         if (user == null) return convertView;
 
-        // 1. 姓名与光荣榜名次联动
+        // 1. 姓名与光荣榜名次联动（去除冗长汉字前缀）
         boolean isTeacher = "teacher".equalsIgnoreCase(user.role);
         if (isHonorRollMode && !isTeacher) {
-            holder.tvName.setText("第 " + (position + 1) + " 名: " + user.name);
+            holder.tvName.setText((position + 1) + ". " + user.name);
         } else {
             holder.tvName.setText(user.name);
         }

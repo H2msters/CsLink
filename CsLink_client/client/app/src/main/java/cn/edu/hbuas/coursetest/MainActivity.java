@@ -1,11 +1,13 @@
 package cn.edu.hbuas.coursetest;
 
+import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -36,6 +38,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -43,6 +46,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -89,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnSend;
     private Button btnToggleMorePanel;
     private LinearLayout layoutMorePanel;
+    private Button btnPanelCamera; // 新增相机按钮
     private Button btnPickImage;
     private LinearLayout itemPanelStartBuzz;
     private Button btnPanelBuzzAction;
@@ -109,6 +114,11 @@ public class MainActivity extends AppCompatActivity {
     private List<AffairItem> displayAffairList;
     private AffairsAdapter affairsAdapter;
     private String currentAffairFilter = "notice";
+
+    // 班级事务未读红点（底栏总红点 + 通知红点 + 作业红点）
+    private View badgeAffairsDot;
+    private View badgeNoticeDot;
+    private View badgeHomeworkDot;
 
     // 页面3：个人中心
     private LinearLayout layoutProfileContainer;
@@ -202,6 +212,34 @@ public class MainActivity extends AppCompatActivity {
                     Uri selectedImageUri = result.getData().getData();
                     if (selectedImageUri != null) {
                         sendChatImage(selectedImageUri);
+                    }
+                }
+            }
+    );
+
+    // 相机权限申请器
+    private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    launchCameraActivity();
+                } else {
+                    Toast.makeText(this, "需要相机权限以完成随堂拍摄", Toast.LENGTH_SHORT).show();
+                }
+            }
+    );
+
+    // 拍照完成结果回调
+    private final ActivityResultLauncher<Intent> cameraCaptureLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String photoPath = result.getData().getStringExtra(CameraCaptureActivity.RESULT_IMAGE_PATH);
+                    if (!TextUtils.isEmpty(photoPath)) {
+                        File photoFile = new File(photoPath);
+                        if (photoFile.exists()) {
+                            sendChatImage(Uri.fromFile(photoFile));
+                        }
                     }
                 }
             }
@@ -309,6 +347,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         updateProfileDisplay();
+        updateAffairsBadge();
 
         if (needReconnect) {
             reconnectHandler.removeCallbacks(reconnectRunnable);
@@ -344,6 +383,7 @@ public class MainActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btnSend);
         btnToggleMorePanel = findViewById(R.id.btnToggleMorePanel);
         layoutMorePanel = findViewById(R.id.layoutMorePanel);
+        btnPanelCamera = findViewById(R.id.btnPanelCamera);
         btnPickImage = findViewById(R.id.btnPickImage);
         itemPanelStartBuzz = findViewById(R.id.itemPanelStartBuzz);
         btnPanelBuzzAction = findViewById(R.id.btnPanelBuzzAction);
@@ -360,6 +400,10 @@ public class MainActivity extends AppCompatActivity {
         rvAffairs = findViewById(R.id.rvAffairs);
         tvEmptyAffairs = findViewById(R.id.tvEmptyAffairs);
 
+        badgeAffairsDot = findViewById(R.id.badgeAffairsDot);
+        badgeNoticeDot = findViewById(R.id.badgeNoticeDot);
+        badgeHomeworkDot = findViewById(R.id.badgeHomeworkDot);
+
         layoutProfileContainer = findViewById(R.id.layoutProfileContainer);
         ivUserAvatar = findViewById(R.id.ivUserAvatar);
         tvProfileNickname = findViewById(R.id.tvProfileNickname);
@@ -375,6 +419,15 @@ public class MainActivity extends AppCompatActivity {
 
         if (btnTabUsers != null) {
             btnTabUsers.setText("功能区");
+        }
+        if (btnEditProfileName != null) {
+            btnEditProfileName.setText("修改姓名");
+        }
+        if (btnProfileReconnect != null) {
+            btnProfileReconnect.setText("重新连接");
+        }
+        if (btnSettings != null) {
+            btnSettings.setText("系统设置");
         }
     }
 
@@ -479,7 +532,7 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception ignored) {}
             }
             connectWebSocket();
-            Toast.makeText(this, "正在重新连接中枢 (" + currentServerIp + ")...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "正在重新连接 (" + currentServerIp + ")...", Toast.LENGTH_SHORT).show();
         });
 
         btnToggleMorePanel.setOnClickListener(v -> {
@@ -491,6 +544,20 @@ public class MainActivity extends AppCompatActivity {
                 btnToggleMorePanel.setText("收起");
             }
         });
+
+        // 相机拍摄发图入口
+        if (btnPanelCamera != null) {
+            btnPanelCamera.setOnClickListener(v -> {
+                layoutMorePanel.setVisibility(View.GONE);
+                btnToggleMorePanel.setText("+");
+
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    launchCameraActivity();
+                } else {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+                }
+            });
+        }
 
         btnPickImage.setOnClickListener(v -> {
             layoutMorePanel.setVisibility(View.GONE);
@@ -590,6 +657,11 @@ public class MainActivity extends AppCompatActivity {
         btnTabProfile.setOnClickListener(v -> switchPage(3));
     }
 
+    private void launchCameraActivity() {
+        Intent intent = new Intent(MainActivity.this, CameraCaptureActivity.class);
+        cameraCaptureLauncher.launch(intent);
+    }
+
     private void switchPage(int pageIndex) {
         if (layoutUserListContainer != null) {
             layoutUserListContainer.setVisibility(pageIndex == 0 ? View.VISIBLE : View.GONE);
@@ -656,6 +728,47 @@ public class MainActivity extends AppCompatActivity {
         if (tvEmptyAffairs != null) {
             tvEmptyAffairs.setText("notice".equals(currentAffairFilter) ? "暂无班级通知" : "暂无班级作业");
             tvEmptyAffairs.setVisibility(displayAffairList.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /**
+     * 检查当前学生未确认的“班级通知”与“班级作业”，同步控制三个红点的显隐
+     */
+    private void updateAffairsBadge() {
+        if ("teacher".equalsIgnoreCase(myRole)) {
+            if (badgeAffairsDot != null) badgeAffairsDot.setVisibility(View.GONE);
+            if (badgeNoticeDot != null) badgeNoticeDot.setVisibility(View.GONE);
+            if (badgeHomeworkDot != null) badgeHomeworkDot.setVisibility(View.GONE);
+            return;
+        }
+
+        int unconfirmedNotice = 0;
+        int unconfirmedHomework = 0;
+
+        if (allAffairList != null && !TextUtils.isEmpty(myNickname)) {
+            for (AffairItem item : allAffairList) {
+                List<String> confirmed = item.getConfirmedStudents();
+                boolean isUnread = (confirmed == null || !confirmed.contains(myNickname));
+                if (isUnread) {
+                    if ("homework".equalsIgnoreCase(item.getType())) {
+                        unconfirmedHomework++;
+                    } else {
+                        unconfirmedNotice++;
+                    }
+                }
+            }
+        }
+
+        int totalUnconfirmed = unconfirmedNotice + unconfirmedHomework;
+
+        if (badgeAffairsDot != null) {
+            badgeAffairsDot.setVisibility(totalUnconfirmed > 0 ? View.VISIBLE : View.GONE);
+        }
+        if (badgeNoticeDot != null) {
+            badgeNoticeDot.setVisibility(unconfirmedNotice > 0 ? View.VISIBLE : View.GONE);
+        }
+        if (badgeHomeworkDot != null) {
+            badgeHomeworkDot.setVisibility(unconfirmedHomework > 0 ? View.VISIBLE : View.GONE);
         }
     }
 
@@ -878,6 +991,18 @@ public class MainActivity extends AppCompatActivity {
                 webSocket.send(json.toString());
             } catch (JSONException ignored) {}
         }
+
+        if (allAffairList != null && !TextUtils.isEmpty(myNickname)) {
+            for (AffairItem item : allAffairList) {
+                if (affairId != null && affairId.equals(item.getAffairId())) {
+                    List<String> confirmed = item.getConfirmedStudents();
+                    if (confirmed != null && !confirmed.contains(myNickname)) {
+                        confirmed.add(myNickname);
+                    }
+                }
+            }
+            updateAffairsBadge();
+        }
     }
 
     private void showUnreadStudentsDialog(List<String> unreadStudents) {
@@ -1044,10 +1169,10 @@ public class MainActivity extends AppCompatActivity {
     private void updateProfileDisplay() {
         String displayName = TextUtils.isEmpty(myNickname) ? "未设置姓名" : myNickname;
         tvProfileNickname.setText("姓名：" + displayName);
-        String connectionInfo = isConnected ? "已连接到教学中枢" : "正在连接...";
+        String connectionInfo = isConnected ? "已连接" : "正在连接...";
         boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
-        String roleText = isTeacher ? "教师端 (管理权限)" : "学生端 (普通学员)";
-        tvProfileStatus.setText("教师中枢节点：" + currentServerIp + ":8000\n当前权限：" + roleText + "\n网络状态：" + connectionInfo);
+        String roleText = isTeacher ? "教师端" : "学生端";
+        tvProfileStatus.setText("服务器节点：" + currentServerIp + ":8000\n当前身份：" + roleText + "\n网络状态：" + connectionInfo);
 
         if (btnPublishAffair != null) {
             btnPublishAffair.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
@@ -1093,13 +1218,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void showChangeNameDialog() {
         final EditText input = new EditText(this);
-        input.setHint("输入真实姓名或学号");
+        input.setHint("输入您的姓名");
         if (!TextUtils.isEmpty(myNickname)) {
             input.setText(myNickname);
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("设置姓名与学号")
+                .setTitle("修改姓名")
                 .setView(input)
                 .setPositiveButton("确认保存", (dialog, which) -> {
                     String newName = input.getText().toString().trim();
@@ -1110,6 +1235,7 @@ public class MainActivity extends AppCompatActivity {
                             userAvatarMap.put(myNickname, myAvatarBase64);
                         }
                         updateProfileDisplay();
+                        updateAffairsBadge();
 
                         if (webSocket != null && isConnected) {
                             try {
@@ -1345,6 +1471,7 @@ public class MainActivity extends AppCompatActivity {
                             myRole = json.optString("role", DEFAULT_ROLE);
                             sharedPreferences.edit().putString(KEY_USER_ROLE, myRole).apply();
                             updateProfileDisplay();
+                            updateAffairsBadge();
 
                         } else if ("avatar_update".equals(type)) {
                             String username = json.optString("username");
@@ -1423,7 +1550,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         if (gameRoomDisplayList.isEmpty()) {
-            gameRoomDisplayList.add("暂无进行中的协作小组，点击上方按钮创建");
+            gameRoomDisplayList.add("暂无协作小组");
             gameRoomIdList.add("");
         }
         if (gameRoomAdapter != null) {
@@ -1484,6 +1611,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         applyAffairFilter();
+        updateAffairsBadge();
     }
 
     private void scheduleReconnect() {

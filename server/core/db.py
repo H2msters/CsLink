@@ -290,3 +290,10 @@ def set_setting(key: str, value: str):
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
         """, (key, value))
         conn.commit()
+
+def delete_user_db(name: str):
+    """从数据库彻底删除学生记录"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users WHERE name = ?", (name,))
+        conn.commit()

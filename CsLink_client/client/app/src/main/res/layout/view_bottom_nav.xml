@@ -1,65 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/layoutBottomNav"
     android:layout_width="match_parent"
     android:layout_height="56dp"
-    android:orientation="horizontal"
     android:background="#FFFFFF"
     android:elevation="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp">
 
-    <!-- Tab 1: 小组协作 (预留给组功能) -->
+    <!-- 1. 功能区 -->
     <Button
         android:id="@+id/btnTabUsers"
         android:layout_width="0dp"
-        android:layout_height="match_parent"
+        android:layout_height="40dp"
+        android:layout_margin="3dp"
         android:layout_weight="1"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="2dp"
-        android:backgroundTint="#E0E0E0"
-        android:text="功能"
-        android:textColor="#333333"
+        android:text="功能区"
         android:textSize="12sp" />
 
-    <!-- Tab 2: 随堂讨论 -->
+    <!-- 2. 随堂讨论 -->
     <Button
         android:id="@+id/btnTabChat"
         android:layout_width="0dp"
-        android:layout_height="match_parent"
+        android:layout_height="40dp"
+        android:layout_margin="3dp"
         android:layout_weight="1"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="2dp"
-        android:backgroundTint="#1E88E5"
-        android:text="班级讨论"
-        android:textColor="#FFFFFF"
+        android:text="随堂讨论"
         android:textSize="12sp" />
 
-    <!-- Tab 3: 班级事务 -->
-    <Button
-        android:id="@+id/btnTabAffairs"
+    <!-- 3. 班级事务 (带未读红点徽标) -->
+    <FrameLayout
         android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="2dp"
-        android:backgroundTint="#E0E0E0"
-        android:text="班级事务"
-        android:textColor="#333333"
-        android:textSize="12sp" />
+        android:layout_height="wrap_content"
+        android:layout_weight="1">
 
-    <!-- Tab 4: 个人中心 -->
+        <Button
+            android:id="@+id/btnTabAffairs"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_margin="3dp"
+            android:text="班级事务"
+            android:textSize="12sp" />
+
+        <!-- 关键修复：增加 elevation="8dp" 确保浮在 Button 之上 -->
+        <View
+            android:id="@+id/badgeAffairsDot"
+            android:layout_width="9dp"
+            android:layout_height="9dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="8dp"
+            android:elevation="8dp"
+            android:background="@drawable/shape_red_dot"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- 4. 个人中心 -->
     <Button
         android:id="@+id/btnTabProfile"
         android:layout_width="0dp"
-        android:layout_height="match_parent"
+        android:layout_height="40dp"
+        android:layout_margin="3dp"
         android:layout_weight="1"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="4dp"
-        android:backgroundTint="#E0E0E0"
         android:text="个人中心"
-        android:textColor="#333333"
         android:textSize="12sp" />
 
 </LinearLayout>

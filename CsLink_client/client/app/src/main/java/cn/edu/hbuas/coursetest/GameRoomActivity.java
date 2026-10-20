@@ -2,7 +2,6 @@ package cn.edu.hbuas.coursetest;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -115,6 +114,13 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
         GameSocketBridge.setListener(this);
 
+        // 主动向服务端握手核对自身在服务端的真实姓名与身份，杜绝因未改昵称导致的比对偏差
+        try {
+            JSONObject req = new JSONObject();
+            req.put("type", "get_my_identity");
+            GameSocketBridge.sendJson(req);
+        } catch (JSONException ignored) {}
+
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -157,7 +163,7 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
         chatAdapter = new ChatAdapter(roomMessageList, userAvatarMap);
 
-        // 点击气泡卡片进入对决
+        // 点击气泡卡片进入对决：师生均可加入参赛
         chatAdapter.setOnInteractiveCardClickListener((cardType, title) -> {
             if ("card_rps".equals(cardType)) {
                 sendJoinRpsGame();
@@ -221,37 +227,18 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         }
     }
 
-    // 精简后的发起选项（直接选择赛制）
+    // 使用原生 setSingleChoiceItems 规范单选，彻底杜绝复选框现象
     private void showLaunchRpsConfigDialog() {
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(60, 20, 60, 10);
-
-        TextView tvRuleLabel = new TextView(this);
-        tvRuleLabel.setText("选择赛制：");
-        tvRuleLabel.setTextColor(Color.parseColor("#475569"));
-        tvRuleLabel.setTextSize(14);
-        tvRuleLabel.setPadding(0, 10, 0, 10);
-        layout.addView(tvRuleLabel);
-
-        final RadioGroup rgRule = new RadioGroup(this);
-        rgRule.setOrientation(RadioGroup.HORIZONTAL);
-        final RadioButton rbBo3 = new RadioButton(this);
-        rbBo3.setText("三局两胜");
-        rbBo3.setChecked(true);
-        final RadioButton rbSingle = new RadioButton(this);
-        rbSingle.setText("单局决胜");
-        rbSingle.setPadding(30, 0, 0, 0);
-
-        rgRule.addView(rbBo3);
-        rgRule.addView(rbSingle);
-        layout.addView(rgRule);
+        final String[] rules = new String[]{"三局两胜 (BO3)", "单局决胜 (BO1)"};
+        final int[] selectedIdx = {0}; // 默认选中三局两胜
 
         new AlertDialog.Builder(this)
-                .setTitle("发起猜拳")
-                .setView(layout)
+                .setTitle("发起猜拳 - 选择赛制")
+                .setSingleChoiceItems(rules, 0, (dialog, which) -> {
+                    selectedIdx[0] = which;
+                })
                 .setPositiveButton("立即发起", (dialog, which) -> {
-                    int targetWins = rbBo3.isChecked() ? 2 : 1;
+                    int targetWins = (selectedIdx[0] == 0) ? 2 : 1;
                     try {
                         JSONObject json = new JSONObject();
                         json.put("type", "initiate_game");
@@ -411,47 +398,56 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         tvP2Score.setText(String.valueOf(s2));
         tvCurrentRoundIndicator.setText("第 " + curRound + " 局");
 
-        boolean isP1 = myNickname.equals(p1);
-        boolean isP2 = myNickname.equals(p2);
+        // 判断当前用户是否为参赛选手（师生通用姓名判定）
+        boolean isP1 = !TextUtils.isEmpty(myNickname) && myNickname.equals(p1);
+        boolean isP2 = !TextUtils.isEmpty(myNickname) && myNickname.equals(p2);
         boolean isPlayer = isP1 || isP2;
         String opponent = isP1 ? p2 : p1;
 
         boolean myChosen = choicesStatus != null && choicesStatus.optBoolean(myNickname, false);
         boolean oppChosen = (!TextUtils.isEmpty(opponent) && choicesStatus != null) && choicesStatus.optBoolean(opponent, false);
 
-        // 2. 状态机流转与按钮可见度控制
+        // 2. 状态机流转与界面渲染
         if ("waiting_opponent".equals(status)) {
             btnNextRound.setVisibility(View.GONE);
-            tvToolRpsStatus.setText("等待对手点击卡片加入...");
-            tvToolRpsResult.setText("等待加入");
+            tvToolRpsStatus.setText("等待对手加入...");
 
             if (isP1) {
+                tvToolRpsResult.setText("等待对手点击卡片应战");
                 tvToolP1Status.setText("我方：已就绪");
                 tvToolP2Status.setText("对方：等待加入");
-                setChoiceButtonsEnabled(true);
+                setChoiceButtonsVisibility(true);
+                setChoiceButtonsEnabled(false);
             } else {
-                tvToolP1Status.setText(p1 + "：发起方");
-                tvToolP2Status.setText("我方：出拳即可应战");
-                setChoiceButtonsEnabled(true);
+                tvToolRpsResult.setText("点击卡片即可加入应战");
+                tvToolP1Status.setText(p1 + "：已发起");
+                tvToolP2Status.setText("我方：未加入");
+                setChoiceButtonsVisibility(false);
             }
 
         } else if ("playing".equals(status)) {
             btnNextRound.setVisibility(View.GONE);
-            tvToolRpsStatus.setText("第 " + curRound + " 局进行中");
-            tvToolRpsResult.setText("请出拳");
 
             if (isPlayer) {
+                // 真正的参赛双方（无论教师还是学生）
+                tvToolRpsStatus.setText("第 " + curRound + " 局进行中");
+                tvToolRpsResult.setText(myChosen ? "已提交，等待对方出拳..." : "请出拳");
                 tvToolP1Status.setText("我方：" + (myChosen ? "已出拳" : "未出拳"));
                 tvToolP2Status.setText("对方：" + (oppChosen ? "已出拳" : "未出拳"));
+                setChoiceButtonsVisibility(true);
                 setChoiceButtonsEnabled(!myChosen);
             } else {
+                // 第三人旁观视角（两方满员时的其他成员）
                 tvToolRpsStatus.setText("正在观战");
+                tvToolRpsResult.setText("对决进行中，双方思考中...");
                 tvToolP1Status.setText(p1 + "：" + (choicesStatus != null && choicesStatus.optBoolean(p1, false) ? "已出拳" : "未出拳"));
                 tvToolP2Status.setText(p2 + "：" + (choicesStatus != null && choicesStatus.optBoolean(p2, false) ? "已出拳" : "未出拳"));
-                setChoiceButtonsEnabled(false);
+                setChoiceButtonsVisibility(false);
             }
 
         } else if ("round_finished".equals(status)) {
+            setChoiceButtonsVisibility(false);
+
             String c1 = (choices != null) ? choices.optString(p1, "") : "";
             String c2 = (choices != null) ? choices.optString(p2, "") : "";
 
@@ -465,12 +461,11 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
             tvToolRpsStatus.setText("比分 " + s1 + " : " + s2);
             tvToolRpsResult.setText(roundResult);
-            setChoiceButtonsEnabled(false);
             btnNextRound.setVisibility(isPlayer ? View.VISIBLE : View.GONE);
 
         } else if ("match_finished".equals(status)) {
             btnNextRound.setVisibility(View.GONE);
-            setChoiceButtonsEnabled(false);
+            setChoiceButtonsVisibility(false);
 
             String c1 = (choices != null) ? choices.optString(p1, "") : "";
             String c2 = (choices != null) ? choices.optString(p2, "") : "";
@@ -482,9 +477,8 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
                 tvToolP2Status.setText(p2 + "：出【" + c2 + "】");
             }
 
-            tvToolRpsStatus.setText("对局结束");
+            tvToolRpsStatus.setText("对决结束");
 
-            // 获取败者姓名并标注对决胜负关系
             String loser = p1.equals(finalWinner) ? p2 : p1;
             if (!TextUtils.isEmpty(loser)) {
                 tvToolRpsResult.setText("【" + finalWinner + "】战胜了【" + loser + "】");
@@ -492,6 +486,13 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
                 tvToolRpsResult.setText("【" + finalWinner + "】获胜");
             }
         }
+    }
+
+    private void setChoiceButtonsVisibility(boolean visible) {
+        int visibility = visible ? View.VISIBLE : View.GONE;
+        if (btnChoiceRock != null) btnChoiceRock.setVisibility(visibility);
+        if (btnChoiceScissors != null) btnChoiceScissors.setVisibility(visibility);
+        if (btnChoicePaper != null) btnChoicePaper.setVisibility(visibility);
     }
 
     private void setChoiceButtonsEnabled(boolean enabled) {
@@ -504,6 +505,24 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
     public void onMessageReceived(JSONObject json) {
         runOnUiThread(() -> {
             String type = json.optString("type", "");
+
+            // 接收服务端校准的真实用户名与角色
+            if ("my_identity".equals(type)) {
+                String sName = json.optString("my_name", "");
+                String sRole = json.optString("my_role", "");
+                if (!TextUtils.isEmpty(sName)) {
+                    myNickname = sName;
+                    SharedPreferences sp = getSharedPreferences("CampusChatPrefs", Context.MODE_PRIVATE);
+                    sp.edit().putString("user_nickname", myNickname).apply();
+                }
+                if (!TextUtils.isEmpty(sRole)) {
+                    myRole = sRole;
+                }
+                if (latestRpsState != null && rpsDialog != null && rpsDialog.isShowing()) {
+                    renderRpsStateToDialog(latestRpsState);
+                }
+                return;
+            }
 
             if ("room_disbanded".equals(type)) {
                 String reason = json.optString("message", "小组已被解散");
@@ -556,7 +575,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
                 btnRoomMembers.setText("组员 (" + studentCount + "/" + maxPlayers + "人)");
 
-                // 统一分发猜拳最新状态
             } else if ("rps_state".equals(type)) {
                 latestRpsState = json.optJSONObject("state");
                 renderRpsStateToDialog(latestRpsState);

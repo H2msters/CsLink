@@ -97,18 +97,19 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 教师快捷加分按钮 -->
+    <!-- 教师快捷加分按钮：文案改为【加分】，禁止抢占整行焦点 -->
     <Button
         android:id="@+id/btnAwardScore"
         android:layout_width="wrap_content"
-        android:layout_height="36dp"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
+        android:layout_height="34dp"
+        android:minWidth="44dp"
+        android:minHeight="44dp"
         android:layout_marginEnd="6dp"
         android:backgroundTint="#FEF3C7"
+        android:focusable="false"
         android:paddingStart="10dp"
         android:paddingEnd="10dp"
-        android:text="+1分"
+        android:text="加分"
         android:textColor="#D97706"
         android:textSize="11sp"
         android:visibility="gone"
@@ -118,10 +119,11 @@
     <Button
         android:id="@+id/btnRosterMuteAction"
         android:layout_width="wrap_content"
-        android:layout_height="36dp"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
+        android:layout_height="34dp"
+        android:minWidth="44dp"
+        android:minHeight="44dp"
         android:backgroundTint="#FEE2E2"
+        android:focusable="false"
         android:paddingStart="10dp"
         android:paddingEnd="10dp"
         android:text="禁言"
