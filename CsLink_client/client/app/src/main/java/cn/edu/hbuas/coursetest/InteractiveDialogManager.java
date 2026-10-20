@@ -259,18 +259,17 @@ public class InteractiveDialogManager {
 
         if (tvVoteStatusHint != null) {
             if (isTeacher) {
-                tvVoteStatusHint.setText(isActive
-                        ? "教师监票视角：实时监看全班作答进度 (教师不参与答题)"
-                        : "本次投票已截止，最终统计结果如下：");
+                // 进行中直接置空，截止后只显示结果提示
+                tvVoteStatusHint.setText(isActive ? "" : "最终统计结果如下：");
             } else {
                 if (isActive) {
                     tvVoteStatusHint.setText(TextUtils.isEmpty(mySelectedVoteOption)
-                            ? "测验进行中：请点击选项作答 (统计结果将在教师公布后展示)"
-                            : "已提交选项 " + mySelectedVoteOption + " (点击其他选项可改选)，等待教师公布结果");
+                            ? "请点击选项作答"
+                            : "已提交选项：" + mySelectedVoteOption);
                 } else {
                     tvVoteStatusHint.setText(TextUtils.isEmpty(mySelectedVoteOption)
-                            ? "本次测验已截止 (你未参与作答)，公布统计结果如下："
-                            : "本次测验已截止，你的作答是【" + mySelectedVoteOption + "】，统计结果如下：");
+                            ? "本次测验已截止，统计结果如下："
+                            : "本次测验已截止，你的作答是【" + mySelectedVoteOption + "】");
                 }
             }
         }

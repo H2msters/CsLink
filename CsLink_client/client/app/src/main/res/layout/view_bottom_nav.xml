@@ -20,14 +20,14 @@
         android:text="功能区"
         android:textSize="12sp" />
 
-    <!-- 2. 随堂讨论 -->
+    <!-- 2. 班级 -->
     <Button
         android:id="@+id/btnTabChat"
         android:layout_width="0dp"
         android:layout_height="40dp"
         android:layout_margin="3dp"
         android:layout_weight="1"
-        android:text="随堂讨论"
+        android:text="班级讨论"
         android:textSize="12sp" />
 
     <!-- 3. 班级事务 (带未读红点徽标) -->

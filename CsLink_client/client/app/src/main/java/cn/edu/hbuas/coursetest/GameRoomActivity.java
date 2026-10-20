@@ -1,26 +1,36 @@
 package cn.edu.hbuas.coursetest;
 
+import android.Manifest;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -29,6 +39,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -52,8 +65,10 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
     private EditText etRoomMessage;
     private Button btnSendRoomMsg;
     private Button btnToggleRoomToolPanel;
-    private LinearLayout layoutRoomToolPanel;
+    private View layoutRoomToolPanel;
 
+    private LinearLayout itemToolCamera;
+    private LinearLayout itemToolGallery;
     private LinearLayout itemToolRps;
     private LinearLayout itemToolCanvas;
 
@@ -82,18 +97,62 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
     private JSONObject latestRpsState = null;
 
+    // 1. 相机权限申请器
+    private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    launchCameraActivity();
+                } else {
+                    Toast.makeText(this, "需要相机权限以完成随堂拍摄", Toast.LENGTH_SHORT).show();
+                }
+            }
+    );
+
+    // 2. 拍照完成结果回调
+    private final ActivityResultLauncher<Intent> cameraCaptureLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String photoPath = result.getData().getStringExtra(CameraCaptureActivity.RESULT_IMAGE_PATH);
+                    if (!TextUtils.isEmpty(photoPath)) {
+                        File photoFile = new File(photoPath);
+                        if (photoFile.exists()) {
+                            sendRoomImage(Uri.fromFile(photoFile));
+                        }
+                    }
+                }
+            }
+    );
+
+    // 3. 相册选取图片结果回调
+    private final ActivityResultLauncher<Intent> chatImagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri selectedImageUri = result.getData().getData();
+                    if (selectedImageUri != null) {
+                        sendRoomImage(selectedImageUri);
+                    }
+                }
+            }
+    );
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game_room);
 
+        // 关键：监听键盘（IME）与状态栏高度，键盘弹起时自动把输入框与消息列表顶起
         View rootLayout = findViewById(R.id.roomRootLayout);
         if (rootLayout != null) {
             ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
-                Insets systemBars = insets.getInsets(
+                Insets sysInsets = insets.getInsets(
                         WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
                 );
-                v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+                Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+                int bottomPadding = Math.max(sysInsets.bottom, imeInsets.bottom);
+                v.setPadding(sysInsets.left, sysInsets.top, sysInsets.right, bottomPadding);
                 return insets;
             });
         }
@@ -114,7 +173,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
         GameSocketBridge.setListener(this);
 
-        // 主动向服务端握手核对自身在服务端的真实姓名与身份，杜绝因未改昵称导致的比对偏差
         try {
             JSONObject req = new JSONObject();
             req.put("type", "get_my_identity");
@@ -141,6 +199,8 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         btnToggleRoomToolPanel = findViewById(R.id.btnToggleRoomToolPanel);
         layoutRoomToolPanel = findViewById(R.id.layoutRoomToolPanel);
 
+        itemToolCamera = findViewById(R.id.itemToolCamera);
+        itemToolGallery = findViewById(R.id.itemToolGallery);
         itemToolRps = findViewById(R.id.itemToolRps);
         itemToolCanvas = findViewById(R.id.itemToolCanvas);
 
@@ -163,7 +223,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
         chatAdapter = new ChatAdapter(roomMessageList, userAvatarMap);
 
-        // 点击气泡卡片进入对决：师生均可加入参赛
         chatAdapter.setOnInteractiveCardClickListener((cardType, title) -> {
             if ("card_rps".equals(cardType)) {
                 sendJoinRpsGame();
@@ -171,9 +230,19 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
             }
         });
 
+        // 点击图片放大预览
+        chatAdapter.setOnImageClickListener(this::showImagePreviewDialog);
+
         chatLayoutManager = new LinearLayoutManager(this);
         rvRoomChat.setLayoutManager(chatLayoutManager);
         rvRoomChat.setAdapter(chatAdapter);
+
+        // 键盘弹起或高度变化时，自动滚动到最新消息
+        rvRoomChat.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (bottom < oldBottom && !roomMessageList.isEmpty()) {
+                rvRoomChat.post(() -> rvRoomChat.smoothScrollToPosition(roomMessageList.size() - 1));
+            }
+        });
 
         btnSendRoomMsg.setOnClickListener(v -> {
             String text = etRoomMessage.getText().toString().trim();
@@ -201,36 +270,111 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
     }
 
     private void initTools() {
+        Button btnToolCameraAction = findViewById(R.id.btnToolCameraAction);
+        Button btnToolGalleryAction = findViewById(R.id.btnToolGalleryAction);
         Button btnLaunchRpsTool = findViewById(R.id.btnLaunchRpsTool);
         Button btnToolCanvasAction = findViewById(R.id.btnToolCanvasAction);
 
+        // 1. 随堂拍摄入口
+        View.OnClickListener cameraClickListener = v -> {
+            if (layoutRoomToolPanel != null) layoutRoomToolPanel.setVisibility(View.GONE);
+            if (btnToggleRoomToolPanel != null) btnToggleRoomToolPanel.setText("+");
+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                launchCameraActivity();
+            } else {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+            }
+        };
+        if (itemToolCamera != null) itemToolCamera.setOnClickListener(cameraClickListener);
+        if (btnToolCameraAction != null) btnToolCameraAction.setOnClickListener(cameraClickListener);
+
+        // 2. 相册选图入口
+        View.OnClickListener galleryClickListener = v -> {
+            if (layoutRoomToolPanel != null) layoutRoomToolPanel.setVisibility(View.GONE);
+            if (btnToggleRoomToolPanel != null) btnToggleRoomToolPanel.setText("+");
+
+            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            chatImagePickerLauncher.launch(intent);
+        };
+        if (itemToolGallery != null) itemToolGallery.setOnClickListener(galleryClickListener);
+        if (btnToolGalleryAction != null) btnToolGalleryAction.setOnClickListener(galleryClickListener);
+
+        // 3. 猜拳对决
         View.OnClickListener rpsClickListener = v -> {
-            layoutRoomToolPanel.setVisibility(View.GONE);
-            btnToggleRoomToolPanel.setText("+");
+            if (layoutRoomToolPanel != null) layoutRoomToolPanel.setVisibility(View.GONE);
+            if (btnToggleRoomToolPanel != null) btnToggleRoomToolPanel.setText("+");
             showLaunchRpsConfigDialog();
         };
+        if (itemToolRps != null) itemToolRps.setOnClickListener(rpsClickListener);
+        if (btnLaunchRpsTool != null) btnLaunchRpsTool.setOnClickListener(rpsClickListener);
 
-        itemToolRps.setOnClickListener(rpsClickListener);
-        if (btnLaunchRpsTool != null) {
-            btnLaunchRpsTool.setOnClickListener(rpsClickListener);
-        }
-
+        // 4. 协同草稿
         View.OnClickListener canvasClickListener = v -> {
-            layoutRoomToolPanel.setVisibility(View.GONE);
-            btnToggleRoomToolPanel.setText("+");
+            if (layoutRoomToolPanel != null) layoutRoomToolPanel.setVisibility(View.GONE);
+            if (btnToggleRoomToolPanel != null) btnToggleRoomToolPanel.setText("+");
             Toast.makeText(this, "协同白板草稿即将接入", Toast.LENGTH_SHORT).show();
         };
-
-        itemToolCanvas.setOnClickListener(canvasClickListener);
-        if (btnToolCanvasAction != null) {
-            btnToolCanvasAction.setOnClickListener(canvasClickListener);
-        }
+        if (itemToolCanvas != null) itemToolCanvas.setOnClickListener(canvasClickListener);
+        if (btnToolCanvasAction != null) btnToolCanvasAction.setOnClickListener(canvasClickListener);
     }
 
-    // 使用原生 setSingleChoiceItems 规范单选，彻底杜绝复选框现象
+    private void launchCameraActivity() {
+        Intent intent = new Intent(GameRoomActivity.this, CameraCaptureActivity.class);
+        cameraCaptureLauncher.launch(intent);
+    }
+
+    private void sendRoomImage(Uri imageUri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(imageUri);
+            Bitmap originalBitmap = BitmapFactory.decodeStream(inputStream);
+            if (originalBitmap != null) {
+                int maxDim = 450;
+                int width = originalBitmap.getWidth();
+                int height = originalBitmap.getHeight();
+                float ratio = Math.min((float) maxDim / width, (float) maxDim / height);
+                if (ratio > 1.0f) ratio = 1.0f;
+
+                int finalW = Math.max(1, Math.round(ratio * width));
+                int finalH = Math.max(1, Math.round(ratio * height));
+
+                Bitmap scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, finalW, finalH, true);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 60, outputStream);
+                String imgBase64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP);
+
+                JSONObject json = new JSONObject();
+                json.put("type", "image");
+                json.put("content", imgBase64);
+                json.put("role", myRole);
+                json.put("avatar", myAvatarBase64);
+
+                GameSocketBridge.sendJson(json);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void showImagePreviewDialog(String base64) {
+        if (TextUtils.isEmpty(base64)) return;
+        try {
+            byte[] decoded = Base64.decode(base64, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+            if (bitmap == null) return;
+
+            Dialog previewDialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+            ImageView iv = new ImageView(this);
+            iv.setImageBitmap(bitmap);
+            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iv.setBackgroundColor(Color.BLACK);
+            iv.setOnClickListener(v -> previewDialog.dismiss());
+            previewDialog.setContentView(iv);
+            previewDialog.show();
+        } catch (Exception ignored) {}
+    }
+
     private void showLaunchRpsConfigDialog() {
         final String[] rules = new String[]{"三局两胜 (BO3)", "单局决胜 (BO1)"};
-        final int[] selectedIdx = {0}; // 默认选中三局两胜
+        final int[] selectedIdx = {0};
 
         new AlertDialog.Builder(this)
                 .setTitle("发起猜拳 - 选择赛制")
@@ -389,7 +533,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         JSONObject choicesStatus = state.optJSONObject("choices_status");
         JSONObject choices = state.optJSONObject("choices");
 
-        // 1. 比分与赛制指示
         String ruleDesc = (targetWins == 1) ? "单局决胜" : "三局两胜";
         tvToolRpsTopic.setText("猜拳 (" + ruleDesc + ")");
         tvP1Name.setText(TextUtils.isEmpty(p1) ? "红方" : p1);
@@ -398,7 +541,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         tvP2Score.setText(String.valueOf(s2));
         tvCurrentRoundIndicator.setText("第 " + curRound + " 局");
 
-        // 判断当前用户是否为参赛选手（师生通用姓名判定）
         boolean isP1 = !TextUtils.isEmpty(myNickname) && myNickname.equals(p1);
         boolean isP2 = !TextUtils.isEmpty(myNickname) && myNickname.equals(p2);
         boolean isPlayer = isP1 || isP2;
@@ -407,7 +549,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         boolean myChosen = choicesStatus != null && choicesStatus.optBoolean(myNickname, false);
         boolean oppChosen = (!TextUtils.isEmpty(opponent) && choicesStatus != null) && choicesStatus.optBoolean(opponent, false);
 
-        // 2. 状态机流转与界面渲染
         if ("waiting_opponent".equals(status)) {
             btnNextRound.setVisibility(View.GONE);
             tvToolRpsStatus.setText("等待对手加入...");
@@ -429,7 +570,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
             btnNextRound.setVisibility(View.GONE);
 
             if (isPlayer) {
-                // 真正的参赛双方（无论教师还是学生）
                 tvToolRpsStatus.setText("第 " + curRound + " 局进行中");
                 tvToolRpsResult.setText(myChosen ? "已提交，等待对方出拳..." : "请出拳");
                 tvToolP1Status.setText("我方：" + (myChosen ? "已出拳" : "未出拳"));
@@ -437,7 +577,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
                 setChoiceButtonsVisibility(true);
                 setChoiceButtonsEnabled(!myChosen);
             } else {
-                // 第三人旁观视角（两方满员时的其他成员）
                 tvToolRpsStatus.setText("正在观战");
                 tvToolRpsResult.setText("对决进行中，双方思考中...");
                 tvToolP1Status.setText(p1 + "：" + (choicesStatus != null && choicesStatus.optBoolean(p1, false) ? "已出拳" : "未出拳"));
@@ -506,7 +645,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         runOnUiThread(() -> {
             String type = json.optString("type", "");
 
-            // 接收服务端校准的真实用户名与角色
             if ("my_identity".equals(type)) {
                 String sName = json.optString("my_name", "");
                 String sRole = json.optString("my_role", "");

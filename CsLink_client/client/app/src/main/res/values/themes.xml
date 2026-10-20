@@ -1,15 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 自定义的主题名称：Theme.CampusChat -->
     <style name="Theme.CampusChat" parent="Theme.AppCompat.Light.NoActionBar">
         <!-- 品牌主色 -->
         <item name="colorPrimary">@color/brand_primary</item>
         <item name="colorPrimaryDark">@color/brand_primary_dark</item>
         <item name="colorAccent">@color/brand_accent</item>
 
-        <!-- 全局窗口背景底色 -->
+        <!-- 全局窗口背景 -->
         <item name="android:windowBackground">@color/app_background</item>
 
-        <!-- 顶部系统状态栏直接跟随主色加深，保持沉浸感 -->
-        <item name="android:statusBarColor">@color/brand_primary_dark</item>
+        <!-- 顶部系统状态栏设为纯白，不染色 -->
+        <item name="android:statusBarColor">@color/white</item>
+
+        <!-- 开启浅色状态栏：让时间、电量、5G 图标保持标准黑色 -->
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

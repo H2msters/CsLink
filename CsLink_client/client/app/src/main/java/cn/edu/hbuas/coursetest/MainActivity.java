@@ -77,11 +77,12 @@ public class MainActivity extends AppCompatActivity {
     private Button btnHeaderRoster;
     private String currentClassroomTitle = "数字化课堂 [讨论频道]";
 
-    // 页面0：功能区（小组大厅 + 班级图书角）
+    // 页面0：功能区（小组大厅 + 班级图书角 + AI平台）
     private LinearLayout layoutUserListContainer;
     private TextView tvOnlineCount;
     private Button btnCreateGameRoom;
     private ListView lvGameRooms;
+    private View cardAiPlatform;
     private View cardBookCorner;
 
     // 页面1：随堂讨论与抽屉
@@ -93,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnSend;
     private Button btnToggleMorePanel;
     private LinearLayout layoutMorePanel;
-    private Button btnPanelCamera; // 新增相机按钮
+    private Button btnPanelCamera;
     private Button btnPickImage;
     private LinearLayout itemPanelStartBuzz;
     private Button btnPanelBuzzAction;
@@ -248,6 +249,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 1. 将状态栏背景色直接设为与标题栏相同的深蓝色 #1E88E5，实现顶部无缝连成一片
+        Window window = getWindow();
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.setStatusBarColor(Color.parseColor("#1E88E5"));
+
+        // 2. 将状态栏的时间、电池、5G/WiFi 图标强制设为纯白（false = 深蓝底色搭配纯白图标）
+        androidx.core.view.WindowInsetsControllerCompat insetsController =
+                androidx.core.view.WindowCompat.getInsetsController(window, window.getDecorView());
+        if (insetsController != null) {
+            insetsController.setAppearanceLightStatusBars(false);
+        }
+
         setContentView(R.layout.activity_main);
 
         sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
@@ -374,6 +389,7 @@ public class MainActivity extends AppCompatActivity {
         tvOnlineCount = findViewById(R.id.tvOnlineCount);
         btnCreateGameRoom = findViewById(R.id.btnCreateGameRoom);
         lvGameRooms = findViewById(R.id.lvGameRooms);
+        cardAiPlatform = findViewById(R.id.cardAiPlatform);
         cardBookCorner = findViewById(R.id.cardBookCorner);
 
         pageChatLayout = findViewById(R.id.pageChatLayout);
@@ -510,6 +526,12 @@ public class MainActivity extends AppCompatActivity {
             btnHeaderRoster.setOnClickListener(v -> {
                 Intent intent = new Intent(MainActivity.this, RosterActivity.class);
                 startActivity(intent);
+            });
+        }
+
+        if (cardAiPlatform != null) {
+            cardAiPlatform.setOnClickListener(v -> {
+                Toast.makeText(this, "正在进入AI平台...", Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -1210,7 +1232,7 @@ public class MainActivity extends AppCompatActivity {
                 btnSend.setEnabled(false);
             }
         } else {
-            etMessage.setHint("输入随堂讨论内容...");
+            etMessage.setHint("请输入文本");
             etMessage.setEnabled(true);
             btnSend.setEnabled(true);
         }

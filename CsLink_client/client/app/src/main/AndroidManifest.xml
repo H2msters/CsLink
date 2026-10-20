@@ -56,8 +56,8 @@
         <!-- 注册独立互动房间 Activity -->
         <activity
             android:name=".GameRoomActivity"
-            android:windowSoftInputMode="adjustResize"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <!-- 注册班级图书角页面 Activity -->
         <activity

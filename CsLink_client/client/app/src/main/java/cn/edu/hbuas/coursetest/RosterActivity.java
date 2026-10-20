@@ -249,10 +249,10 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
 
         String muteActionText = target.isMuted ? "解除禁言" : "单独禁言";
         String[] options = {
-                "奖励表现 (加分)",
+                "奖励加分",
                 muteActionText,
-                "变更角色身份 (学生/班长)",
-                "修改姓名或学号",
+                "变更角色身份",
+                "修改姓名",
                 "移出班级 (删除该成员)"
         };
 
