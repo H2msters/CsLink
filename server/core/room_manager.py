@@ -16,9 +16,6 @@ class ClassAffair:
         self.deadline = deadline
         self.timestamp = timestamp if timestamp else int(time.time() * 1000)
         self.confirmed_students: Set[str] = confirmed_students if confirmed_students is not None else set()
-        self.is_global_muted: bool = False
-        self.is_screen_locked: bool = False
-        self.classroom_title: str = db.get_setting("classroom_title", "数字化课堂 [讨论频道]")
 
     def to_dict(self) -> dict:
         return {
@@ -44,7 +41,7 @@ class RoomInfo:
         self.members: Dict[WebSocket, dict] = {}
         self.created_at = int(time.time() * 1000)
         self.history: List[dict] = db.load_recent_chat(room_id, limit=50)
-        self.canvas_strokes: List[dict] = []  # 新增：小组协同白板笔迹缓存
+        self.canvas_strokes: List[dict] = []  # 小组协同白板笔迹缓存
 
     def get_student_count(self) -> int:
         return sum(1 for m in self.members.values() if m.get("role") != "teacher")
@@ -75,7 +72,7 @@ class RoomManager:
         self.rooms: Dict[str, RoomInfo] = {
             "lobby": RoomInfo("lobby", "公共讨论大厅", "系统", max_players=999, game_type="rps")
         }
-        # 核心：维护 WebSocket -> room_id 的统一反向索引，避免各协程局部变量失联
+        # 维护 WebSocket -> room_id 的统一反向索引
         self.ws_room_map: Dict[WebSocket, str] = {}
         self.roster: Dict[str, dict] = db.load_all_users()
 
@@ -94,6 +91,7 @@ class RoomManager:
             ))
 
         self.is_global_muted: bool = False
+        self.is_screen_locked: bool = False
         self.classroom_title: str = db.get_setting("classroom_title", "数字化课堂 [讨论频道]")
 
     def set_classroom_title(self, title: str):
@@ -251,7 +249,6 @@ class RoomManager:
             return False, None
         room = self.rooms[room_id]
         if is_teacher or room.creator == requester:
-            # 复制引用用于向原房间成员发送解散通知
             deleted_room = self.rooms.pop(room_id)
             lobby = self.rooms["lobby"]
             for member_ws, member_info in list(deleted_room.members.items()):
