@@ -57,7 +57,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public int getItemViewType(int position) {
         ChatMessage msg = messageList.get(position);
         String type = msg.getType();
-        if ("card_buzz".equals(type) || "card_vote".equals(type) || "card_rps".equals(type)) {
+        if ("card_buzz".equals(type) || "card_vote".equals(type) || "card_rps".equals(type) || "card_canvas".equals(type)) {
             return TYPE_CARD;
         }
         return TYPE_MESSAGE;
@@ -108,7 +108,13 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             vh.tvCardBadge.setTextColor(Color.parseColor("#0369A1"));
             badgeBg.setColor(Color.parseColor("#E0F2FE"));
             vh.btnEnterCardAction.setText("进入猜拳");
+        } else if ("card_canvas".equals(msg.getType())) {
+            vh.tvCardBadge.setText("协同白板");
+            vh.tvCardBadge.setTextColor(Color.parseColor("#15803D"));
+            badgeBg.setColor(Color.parseColor("#DCFCE7"));
+            vh.btnEnterCardAction.setText("进入白板");
         }
+
         vh.tvCardBadge.setBackground(badgeBg);
 
         View.OnClickListener clickListener = v -> {

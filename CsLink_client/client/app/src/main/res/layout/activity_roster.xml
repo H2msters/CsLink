@@ -8,7 +8,7 @@
     android:background="#F8FAFC"
     android:orientation="vertical">
 
-    <!-- 顶栏导航 -->
+    <!-- 顶栏导航（右侧新增考勤日历入口） -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="52dp"
@@ -16,7 +16,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="12dp"
-        android:paddingEnd="16dp">
+        android:paddingEnd="12dp">
 
         <Button
             android:id="@+id/btnBack"
@@ -43,9 +43,19 @@
             android:textStyle="bold"
             tools:ignore="HardcodedText" />
 
-        <View
-            android:layout_width="48dp"
-            android:layout_height="1dp" />
+        <Button
+            android:id="@+id/btnAttendanceCalendar"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:backgroundTint="#1565C0"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:text="考勤日历"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            tools:ignore="HardcodedText,TouchTargetSizeCheck" />
     </LinearLayout>
 
     <!-- 顶部班级信息与分段排序卡片 -->
@@ -114,7 +124,6 @@
                 android:textSize="13sp"
                 tools:ignore="HardcodedText" />
 
-            <!-- 双选分段式切换胶囊：采用扁平 TextView 避免 Button 阴影与固定高度冲突导致文字挤压 -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

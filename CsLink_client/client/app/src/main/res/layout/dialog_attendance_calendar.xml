@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#FFFFFF"
+    android:orientation="vertical"
+    android:padding="18dp">
+
+    <!-- 顶部标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="课堂考勤与加分日历"
+            android:textColor="#0F172A"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnCloseCalendar"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="48dp"
+            android:minHeight="0dp"
+            android:backgroundTint="#E2E8F0"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:text="关闭"
+            android:textColor="#334155"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 原生交互日历控件 -->
+    <CalendarView
+        android:id="@+id/calendarViewAttendance"
+        android:layout_width="match_parent"
+        android:layout_height="290dp"
+        android:layout_marginTop="6dp" />
+
+    <!-- 选中日期的汇总信息条 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#EFF6FF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/tvSelectedDateTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="2026-10-25 考勤加分明细"
+            android:textColor="#1E40AF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvSelectedDateSummary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="共 0 人次"
+            android:textColor="#1E88E5"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 当日加分详细流水列表 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:layout_marginTop="6dp"
+        android:background="#F8FAFC">
+
+        <ListView
+            android:id="@+id/lvAttendanceLogs"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="#E2E8F0"
+            android:dividerHeight="1dp" />
+
+        <TextView
+            android:id="@+id/tvEmptyAttendanceLogs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="当日暂无课堂加分记录"
+            android:textColor="#94A3B8"
+            android:textSize="13sp"
+            android:visibility="visible" />
+    </FrameLayout>
+
+</LinearLayout>

@@ -139,12 +139,14 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
-        // 切换角色（学生端 / 教师端）
+        // 切换角色（学生端 -> 班长端 -> 教师端 三态循环）
         btnDevToggleRole.setOnClickListener(v -> {
-            if ("teacher".equalsIgnoreCase(selectedRole)) {
-                selectedRole = "student";
-            } else {
+            if ("student".equalsIgnoreCase(selectedRole)) {
+                selectedRole = "monitor";
+            } else if ("monitor".equalsIgnoreCase(selectedRole)) {
                 selectedRole = "teacher";
+            } else {
+                selectedRole = "student";
             }
             updateRoleToggleButtonText();
         });
@@ -152,8 +154,8 @@ public class SettingsActivity extends AppCompatActivity {
         // 保存特权身份与口令
         btnSaveDevConfig.setOnClickListener(v -> {
             String token = etDevToken.getText().toString().trim();
-            if ("teacher".equalsIgnoreCase(selectedRole) && TextUtils.isEmpty(token)) {
-                Toast.makeText(this, "切换为教师端必须输入授权口令！", Toast.LENGTH_SHORT).show();
+            if (("teacher".equalsIgnoreCase(selectedRole) || "monitor".equalsIgnoreCase(selectedRole)) && TextUtils.isEmpty(token)) {
+                Toast.makeText(this, "切换为教师或班长端必须输入授权口令 (默认 teacher888)！", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -162,14 +164,17 @@ public class SettingsActivity extends AppCompatActivity {
                     .putString(KEY_AUTH_TOKEN, token)
                     .apply();
 
-            Toast.makeText(this, "身份已切换为【" + ("teacher".equalsIgnoreCase(selectedRole) ? "教师端" : "学生端") + "】，正在重载...", Toast.LENGTH_SHORT).show();
+            String roleLabel = "teacher".equalsIgnoreCase(selectedRole) ? "教师端"
+                    : ("monitor".equalsIgnoreCase(selectedRole) ? "班长端" : "学生端");
+            Toast.makeText(this, "身份已切换为【" + roleLabel + "】，正在重载...", Toast.LENGTH_SHORT).show();
             setResult(RESULT_OK);
             finish();
         });
     }
 
     private void updateRoleToggleButtonText() {
-        String roleName = "teacher".equalsIgnoreCase(selectedRole) ? "教师端" : "学生端";
+        String roleName = "teacher".equalsIgnoreCase(selectedRole) ? "教师端"
+                : ("monitor".equalsIgnoreCase(selectedRole) ? "班长端" : "学生端");
         btnDevToggleRole.setText("切换当前模式：【" + roleName + "】(点击可换)");
     }
 }

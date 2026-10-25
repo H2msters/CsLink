@@ -69,6 +69,8 @@ public class InteractiveDialogManager {
     // 4. 全屏图片预览组件
     private Dialog currentImagePreviewDialog;
 
+    // 5. 学生端全屏锁定遮罩组件
+    private Dialog currentScreenLockDialog;
     public InteractiveDialogManager(Activity activity, OnDialogActionListener listener) {
         this.activity = activity;
         this.listener = listener;
@@ -516,6 +518,7 @@ public class InteractiveDialogManager {
         if (currentBuzzerDialog != null && currentBuzzerDialog.isShowing()) currentBuzzerDialog.dismiss();
         if (currentPickDialog != null && currentPickDialog.isShowing()) currentPickDialog.dismiss();
         if (currentImagePreviewDialog != null && currentImagePreviewDialog.isShowing()) currentImagePreviewDialog.dismiss();
+        if (currentScreenLockDialog != null && currentScreenLockDialog.isShowing()) currentScreenLockDialog.dismiss();
     }
 
     private void triggerHapticFeedback(long ms) {
@@ -529,5 +532,78 @@ public class InteractiveDialogManager {
                 }
             }
         } catch (Exception ignored) {}
+    }
+    // =========================================================================
+    // 教师一键锁屏：学生端全屏灰底大字防操作遮罩
+    // =========================================================================
+
+    public void updateScreenLockOverlay(boolean isLocked, String myRole) {
+        if (activity.isFinishing() || activity.isDestroyed()) return;
+
+        // 教师本人不受锁屏遮罩限制
+        if ("teacher".equalsIgnoreCase(myRole) || !isLocked) {
+            if (currentScreenLockDialog != null && currentScreenLockDialog.isShowing()) {
+                currentScreenLockDialog.dismiss();
+            }
+            return;
+        }
+
+        if (currentScreenLockDialog != null && currentScreenLockDialog.isShowing()) {
+            return;
+        }
+
+        currentScreenLockDialog = new Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        currentScreenLockDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        currentScreenLockDialog.setCancelable(false);
+        currentScreenLockDialog.setCanceledOnTouchOutside(false);
+
+        // 彻底拦截物理返回键与手势返回
+        currentScreenLockDialog.setOnKeyListener((dialog, keyCode, event) -> true);
+
+        LinearLayout lockContainer = new LinearLayout(activity);
+        lockContainer.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        lockContainer.setOrientation(LinearLayout.VERTICAL);
+        lockContainer.setGravity(Gravity.CENTER);
+        lockContainer.setBackgroundColor(Color.parseColor("#F5374151")); // 深灰磨砂感底色
+        lockContainer.setPadding(64, 64, 64, 64);
+
+        TextView tvLockIcon = new TextView(activity);
+        tvLockIcon.setText("🔒");
+        tvLockIcon.setTextSize(56);
+        tvLockIcon.setGravity(Gravity.CENTER);
+
+        TextView tvLockBigTitle = new TextView(activity);
+        tvLockBigTitle.setText("屏幕已锁定");
+        tvLockBigTitle.setTextColor(Color.WHITE);
+        tvLockBigTitle.setTextSize(34);
+        tvLockBigTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        tvLockBigTitle.setGravity(Gravity.CENTER);
+        tvLockBigTitle.setPadding(0, 32, 0, 16);
+
+        TextView tvLockSubTitle = new TextView(activity);
+        tvLockSubTitle.setText("请放下手机，抬头专心听讲\n等待教师端解除锁定");
+        tvLockSubTitle.setTextColor(Color.parseColor("#D1D5DB"));
+        tvLockSubTitle.setTextSize(18);
+        tvLockSubTitle.setLineSpacing(12f, 1.0f);
+        tvLockSubTitle.setGravity(Gravity.CENTER);
+
+        lockContainer.addView(tvLockIcon);
+        lockContainer.addView(tvLockBigTitle);
+        lockContainer.addView(tvLockSubTitle);
+
+        currentScreenLockDialog.setContentView(lockContainer);
+        if (currentScreenLockDialog.getWindow() != null) {
+            currentScreenLockDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            currentScreenLockDialog.getWindow().setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+            );
+        }
+
+        triggerHapticFeedback(200);
+        currentScreenLockDialog.show();
     }
 }

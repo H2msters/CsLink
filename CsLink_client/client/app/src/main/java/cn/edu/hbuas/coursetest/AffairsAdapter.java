@@ -89,24 +89,15 @@ public class AffairsAdapter extends RecyclerView.Adapter<AffairsAdapter.AffairVi
         }
         int unreadCount = unreadStudentList.size();
 
-        // 4. 按钮角色逻辑
+        // 4. 按钮角色逻辑（教师与班长均具备事务管理权限）
         boolean isTeacher = "teacher".equalsIgnoreCase(currentUserRole);
+        boolean isMonitor = "monitor".equalsIgnoreCase(currentUserRole);
+        boolean canManageAffair = isTeacher || isMonitor;
         boolean hasRead = item.isConfirmedBy(currentUserName);
 
-        if (isTeacher) {
+        if (canManageAffair) {
             holder.btnEditAffair.setVisibility(View.VISIBLE);
             holder.btnDeleteAffair.setVisibility(View.VISIBLE);
-
-            if (unreadCount > 0) {
-                holder.btnConfirmAffair.setText("未读 (" + unreadCount + ")");
-                ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#EF4444")));
-                holder.btnConfirmAffair.setTextColor(Color.WHITE);
-            } else {
-                holder.btnConfirmAffair.setText("全员已读");
-                ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#10B981")));
-                holder.btnConfirmAffair.setTextColor(Color.WHITE);
-            }
-            holder.btnConfirmAffair.setEnabled(true);
 
             holder.btnEditAffair.setOnClickListener(v -> {
                 if (actionListener != null) actionListener.onEdit(item);
@@ -116,28 +107,49 @@ public class AffairsAdapter extends RecyclerView.Adapter<AffairsAdapter.AffairVi
                 if (actionListener != null) actionListener.onDelete(item.getAffairId());
             });
 
-            holder.btnConfirmAffair.setOnClickListener(v -> {
-                if (actionListener != null) actionListener.onViewUnreadList(item, unreadStudentList);
-            });
+            // 若是班长且本人尚未确认已读，优先提供“标为已读”，已读后即可随时点开查看全班未读名单
+            if (isMonitor && !hasRead) {
+                holder.btnConfirmAffair.setText("标为已读");
+                holder.btnConfirmAffair.setEnabled(true);
+                ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#1E88E5")));
+                holder.btnConfirmAffair.setTextColor(Color.WHITE);
+                holder.btnConfirmAffair.setOnClickListener(v -> {
+                    Toast.makeText(v.getContext(), "已完成阅读回执", Toast.LENGTH_SHORT).show();
+                    if (actionListener != null) {
+                        actionListener.onConfirm(item.getAffairId());
+                    }
+                });
+            } else {
+                if (unreadCount > 0) {
+                    holder.btnConfirmAffair.setText("未读 (" + unreadCount + ")");
+                    ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#EF4444")));
+                    holder.btnConfirmAffair.setTextColor(Color.WHITE);
+                } else {
+                    holder.btnConfirmAffair.setText("全员已读");
+                    ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#10B981")));
+                    holder.btnConfirmAffair.setTextColor(Color.WHITE);
+                }
+                holder.btnConfirmAffair.setEnabled(true);
+                holder.btnConfirmAffair.setOnClickListener(v -> {
+                    if (actionListener != null) actionListener.onViewUnreadList(item, unreadStudentList);
+                });
+            }
         } else {
             holder.btnEditAffair.setVisibility(View.GONE);
             holder.btnDeleteAffair.setVisibility(View.GONE);
 
             if (hasRead) {
-                // 已读：灰底灰字不可点
                 holder.btnConfirmAffair.setText("已读");
                 holder.btnConfirmAffair.setEnabled(false);
                 ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#E5E7EB")));
                 holder.btnConfirmAffair.setTextColor(Color.parseColor("#9CA3AF"));
             } else {
-                // 未读：蓝底白字可交互
                 holder.btnConfirmAffair.setText("标为已读");
                 holder.btnConfirmAffair.setEnabled(true);
                 ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#1E88E5")));
                 holder.btnConfirmAffair.setTextColor(Color.WHITE);
 
                 holder.btnConfirmAffair.setOnClickListener(v -> {
-                    // 点击后即时变灰并禁用
                     holder.btnConfirmAffair.setText("已读");
                     holder.btnConfirmAffair.setEnabled(false);
                     ViewCompat.setBackgroundTintList(holder.btnConfirmAffair, ColorStateList.valueOf(Color.parseColor("#E5E7EB")));

@@ -97,6 +97,17 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
     private JSONObject latestRpsState = null;
 
+    // 协同白板弹窗与画布控件
+    private Dialog canvasDialog;
+    private CollaborativeCanvasView collaborativeCanvasView;
+    private TextView tvCanvasSyncStatus;
+
+    // 课堂全局管控（锁屏遮罩、全员禁言、单独禁言）
+    private InteractiveDialogManager roomDialogManager;
+    private boolean isGlobalMuted = false;
+    private boolean isMyUserMuted = false;
+    private boolean isScreenLocked = false;
+
     // 1. 相机权限申请器
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
@@ -143,7 +154,6 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game_room);
 
-        // 关键：监听键盘（IME）与状态栏高度，键盘弹起时自动把输入框与消息列表顶起
         View rootLayout = findViewById(R.id.roomRootLayout);
         if (rootLayout != null) {
             ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
@@ -170,6 +180,13 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         initViews();
         initChat();
         initTools();
+
+        roomDialogManager = new InteractiveDialogManager(this, null);
+        isGlobalMuted = RosterDataBridge.isGlobalMuted();
+        isScreenLocked = RosterDataBridge.isScreenLocked();
+        isMyUserMuted = RosterDataBridge.isUserIndividuallyMuted(myNickname);
+        updateRoomMuteUI();
+        roomDialogManager.updateScreenLockOverlay(isScreenLocked, myRole);
 
         GameSocketBridge.setListener(this);
 
@@ -227,17 +244,17 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
             if ("card_rps".equals(cardType)) {
                 sendJoinRpsGame();
                 showRpsToolDialog();
+            } else if ("card_canvas".equals(cardType)) {
+                openCollaborativeCanvasDialog(false);
             }
         });
 
-        // 点击图片放大预览
         chatAdapter.setOnImageClickListener(this::showImagePreviewDialog);
 
         chatLayoutManager = new LinearLayoutManager(this);
         rvRoomChat.setLayoutManager(chatLayoutManager);
         rvRoomChat.setAdapter(chatAdapter);
 
-        // 键盘弹起或高度变化时，自动滚动到最新消息
         rvRoomChat.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
             if (bottom < oldBottom && !roomMessageList.isEmpty()) {
                 rvRoomChat.post(() -> rvRoomChat.smoothScrollToPosition(roomMessageList.size() - 1));
@@ -309,14 +326,162 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         if (itemToolRps != null) itemToolRps.setOnClickListener(rpsClickListener);
         if (btnLaunchRpsTool != null) btnLaunchRpsTool.setOnClickListener(rpsClickListener);
 
-        // 4. 协同草稿
+        // 4. 协同草稿白板
         View.OnClickListener canvasClickListener = v -> {
             if (layoutRoomToolPanel != null) layoutRoomToolPanel.setVisibility(View.GONE);
             if (btnToggleRoomToolPanel != null) btnToggleRoomToolPanel.setText("+");
-            Toast.makeText(this, "协同白板草稿即将接入", Toast.LENGTH_SHORT).show();
+            openCollaborativeCanvasDialog(true);
         };
         if (itemToolCanvas != null) itemToolCanvas.setOnClickListener(canvasClickListener);
         if (btnToolCanvasAction != null) btnToolCanvasAction.setOnClickListener(canvasClickListener);
+    }
+
+    // ---------------- 协同白板弹窗与同步逻辑 ----------------
+
+    private void openCollaborativeCanvasDialog(boolean announceCard) {
+        if (canvasDialog == null || !canvasDialog.isShowing()) {
+            canvasDialog = new Dialog(this);
+            canvasDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            View view = LayoutInflater.from(this).inflate(R.layout.dialog_tool_canvas, null);
+            canvasDialog.setContentView(view);
+
+            if (canvasDialog.getWindow() != null) {
+                canvasDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                canvasDialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+
+            collaborativeCanvasView = view.findViewById(R.id.collaborativeCanvasView);
+            tvCanvasSyncStatus = view.findViewById(R.id.tvCanvasSyncStatus);
+
+            Button btnPenBlack = view.findViewById(R.id.btnPenBlack);
+            Button btnPenRed = view.findViewById(R.id.btnPenRed);
+            Button btnPenBlue = view.findViewById(R.id.btnPenBlue);
+            Button btnPenGreen = view.findViewById(R.id.btnPenGreen);
+            Button btnPenEraser = view.findViewById(R.id.btnPenEraser);
+            Button btnClearCanvas = view.findViewById(R.id.btnClearCanvas);
+            Button btnShareCanvasToChat = view.findViewById(R.id.btnShareCanvasToChat);
+            Button btnCloseCanvas = view.findViewById(R.id.btnCloseCanvas);
+
+            btnPenBlack.setOnClickListener(v -> {
+                collaborativeCanvasView.setPenColor("#1E293B");
+                tvCanvasSyncStatus.setText("当前：黑笔");
+            });
+            btnPenRed.setOnClickListener(v -> {
+                collaborativeCanvasView.setPenColor("#EF4444");
+                tvCanvasSyncStatus.setText("当前：红笔");
+            });
+            btnPenBlue.setOnClickListener(v -> {
+                collaborativeCanvasView.setPenColor("#2563EB");
+                tvCanvasSyncStatus.setText("当前：蓝笔");
+            });
+            btnPenGreen.setOnClickListener(v -> {
+                collaborativeCanvasView.setPenColor("#10B981");
+                tvCanvasSyncStatus.setText("当前：绿笔");
+            });
+            btnPenEraser.setOnClickListener(v -> {
+                collaborativeCanvasView.setEraserMode(true);
+                tvCanvasSyncStatus.setText("当前：橡皮擦");
+            });
+
+            collaborativeCanvasView.setOnStrokeCompletedListener(strokeJson -> {
+                try {
+                    JSONObject msg = new JSONObject();
+                    msg.put("type", "canvas_draw");
+                    msg.put("stroke", strokeJson);
+                    GameSocketBridge.sendJson(msg);
+                } catch (JSONException ignored) {}
+            });
+
+            btnClearCanvas.setOnClickListener(v -> {
+                collaborativeCanvasView.clearCanvas();
+                try {
+                    JSONObject msg = new JSONObject();
+                    msg.put("type", "canvas_clear");
+                    GameSocketBridge.sendJson(msg);
+                } catch (JSONException ignored) {}
+            });
+
+            btnShareCanvasToChat.setOnClickListener(v -> {
+                Bitmap exported = collaborativeCanvasView.exportToBitmap();
+                if (exported != null) {
+                    sendBitmapToRoomChat(exported);
+                    Toast.makeText(this, "已将白板草稿发送至讨论区", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+            btnCloseCanvas.setOnClickListener(v -> canvasDialog.dismiss());
+            canvasDialog.show();
+        }
+
+        try {
+            JSONObject req = new JSONObject();
+            req.put("type", "canvas_open");
+            req.put("announce", announceCard);
+            GameSocketBridge.sendJson(req);
+        } catch (JSONException ignored) {}
+    }
+
+    private void sendBitmapToRoomChat(Bitmap originalBitmap) {
+        try {
+            int maxDim = 520;
+            int width = originalBitmap.getWidth();
+            int height = originalBitmap.getHeight();
+            float ratio = Math.min((float) maxDim / width, (float) maxDim / height);
+            if (ratio > 1.0f) ratio = 1.0f;
+
+            int finalW = Math.max(1, Math.round(ratio * width));
+            int finalH = Math.max(1, Math.round(ratio * height));
+
+            Bitmap scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, finalW, finalH, true);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream);
+            String imgBase64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP);
+
+            JSONObject json = new JSONObject();
+            json.put("type", "image");
+            json.put("content", imgBase64);
+            json.put("role", myRole);
+            json.put("avatar", myAvatarBase64);
+
+            GameSocketBridge.sendJson(json);
+        } catch (Exception ignored) {}
+    }
+
+    private void updateRoomMuteUI() {
+        boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
+        boolean effectiveMuted = !isTeacher && (isGlobalMuted || isMyUserMuted);
+
+        if (effectiveMuted) {
+            etRoomMessage.setText("");
+            etRoomMessage.setHint(isMyUserMuted ? "您已被教师单独禁言" : "全员禁言中，暂停发言");
+            etRoomMessage.setHintTextColor(Color.parseColor("#DC2626"));
+            etRoomMessage.setEnabled(false);
+
+            btnSendRoomMsg.setEnabled(false);
+            btnSendRoomMsg.setAlpha(0.5f);
+
+            btnToggleRoomToolPanel.setEnabled(false);
+            btnToggleRoomToolPanel.setAlpha(0.5f);
+            if (layoutRoomToolPanel != null) {
+                layoutRoomToolPanel.setVisibility(View.GONE);
+            }
+            btnToggleRoomToolPanel.setText("+");
+        } else {
+            if (isGlobalMuted && isTeacher) {
+                etRoomMessage.setHint("全员禁言中 (教师不受限)");
+                etRoomMessage.setHintTextColor(Color.parseColor("#D97706"));
+            } else {
+                etRoomMessage.setHint("请输入文本");
+                etRoomMessage.setHintTextColor(Color.parseColor("#9CA3AF"));
+            }
+            etRoomMessage.setEnabled(true);
+
+            btnSendRoomMsg.setEnabled(true);
+            btnSendRoomMsg.setAlpha(1.0f);
+
+            btnToggleRoomToolPanel.setEnabled(true);
+            btnToggleRoomToolPanel.setAlpha(1.0f);
+        }
     }
 
     private void launchCameraActivity() {
@@ -329,27 +494,7 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
             InputStream inputStream = getContentResolver().openInputStream(imageUri);
             Bitmap originalBitmap = BitmapFactory.decodeStream(inputStream);
             if (originalBitmap != null) {
-                int maxDim = 450;
-                int width = originalBitmap.getWidth();
-                int height = originalBitmap.getHeight();
-                float ratio = Math.min((float) maxDim / width, (float) maxDim / height);
-                if (ratio > 1.0f) ratio = 1.0f;
-
-                int finalW = Math.max(1, Math.round(ratio * width));
-                int finalH = Math.max(1, Math.round(ratio * height));
-
-                Bitmap scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, finalW, finalH, true);
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 60, outputStream);
-                String imgBase64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP);
-
-                JSONObject json = new JSONObject();
-                json.put("type", "image");
-                json.put("content", imgBase64);
-                json.put("role", myRole);
-                json.put("avatar", myAvatarBase64);
-
-                GameSocketBridge.sendJson(json);
+                sendBitmapToRoomChat(originalBitmap);
             }
         } catch (Exception ignored) {}
     }
@@ -656,8 +801,60 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
                 if (!TextUtils.isEmpty(sRole)) {
                     myRole = sRole;
                 }
+                isMyUserMuted = json.optBoolean("is_muted", isMyUserMuted);
+                isGlobalMuted = json.optBoolean("is_global_muted", isGlobalMuted);
+                isScreenLocked = json.optBoolean("is_screen_locked", isScreenLocked);
+                updateRoomMuteUI();
+                if (roomDialogManager != null) {
+                    roomDialogManager.updateScreenLockOverlay(isScreenLocked, myRole);
+                }
                 if (latestRpsState != null && rpsDialog != null && rpsDialog.isShowing()) {
                     renderRpsStateToDialog(latestRpsState);
+                }
+                return;
+            }
+
+            if ("global_mute_state".equals(type)) {
+                isGlobalMuted = json.optBoolean("is_muted", false);
+                RosterDataBridge.setGlobalMuted(isGlobalMuted);
+                updateRoomMuteUI();
+                return;
+            }
+
+            if ("screen_lock_state".equals(type)) {
+                isScreenLocked = json.optBoolean("is_locked", false);
+                RosterDataBridge.setScreenLocked(isScreenLocked);
+                if (roomDialogManager != null) {
+                    roomDialogManager.updateScreenLockOverlay(isScreenLocked, myRole);
+                }
+                return;
+            }
+
+            if ("canvas_init".equals(type)) {
+                if (collaborativeCanvasView != null) {
+                    collaborativeCanvasView.loadHistoryStrokes(json.optJSONArray("strokes"));
+                }
+                return;
+            }
+
+            if ("canvas_draw".equals(type)) {
+                String sender = json.optString("sender", "");
+                if (!sender.equals(myNickname) && collaborativeCanvasView != null) {
+                    collaborativeCanvasView.addRemoteStroke(json.optJSONObject("stroke"));
+                    if (tvCanvasSyncStatus != null) {
+                        tvCanvasSyncStatus.setText(sender + " 正在绘制...");
+                    }
+                }
+                return;
+            }
+
+            if ("canvas_clear".equals(type)) {
+                if (collaborativeCanvasView != null) {
+                    collaborativeCanvasView.clearCanvas();
+                }
+                if (tvCanvasSyncStatus != null) {
+                    String sender = json.optString("sender", "组员");
+                    tvCanvasSyncStatus.setText(sender + " 清空了白板");
                 }
                 return;
             }
@@ -750,6 +947,12 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
         super.onDestroy();
         if (rpsDialog != null && rpsDialog.isShowing()) {
             rpsDialog.dismiss();
+        }
+        if (canvasDialog != null && canvasDialog.isShowing()) {
+            canvasDialog.dismiss();
+        }
+        if (roomDialogManager != null) {
+            roomDialogManager.dismissAll();
         }
         GameSocketBridge.clearListener();
     }

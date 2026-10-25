@@ -102,6 +102,13 @@ public class MainActivity extends AppCompatActivity {
     private Button btnPanelRandomPick;
     private LinearLayout itemPanelStartVote;
     private Button btnPanelStartVote;
+    // 新增：抽屉内的全员禁言与一键锁屏组件
+    private LinearLayout itemPanelGlobalMute;
+    private Button btnPanelGlobalMute;
+    private TextView tvPanelGlobalMuteLabel;
+    private LinearLayout itemPanelLockScreen;
+    private Button btnPanelLockScreen;
+    private TextView tvPanelLockScreenLabel;
 
     // 页面2：班级事务
     private View pageAffairsLayout;
@@ -116,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
     private AffairsAdapter affairsAdapter;
     private String currentAffairFilter = "notice";
 
-    // 班级事务未读红点（底栏总红点 + 通知红点 + 作业红点）
+    // 班级事务未读红点
     private View badgeAffairsDot;
     private View badgeNoticeDot;
     private View badgeHomeworkDot;
@@ -168,6 +175,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean isConnecting = false;
     private boolean isDestroyed = false;
     private boolean isGlobalMuted = false;
+    private boolean isMyUserMuted = false;
+    private boolean isScreenLocked = false;
     private boolean isInIndependentRoom = false;
 
     private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
@@ -218,7 +227,6 @@ public class MainActivity extends AppCompatActivity {
             }
     );
 
-    // 相机权限申请器
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
             isGranted -> {
@@ -230,7 +238,6 @@ public class MainActivity extends AppCompatActivity {
             }
     );
 
-    // 拍照完成结果回调
     private final ActivityResultLauncher<Intent> cameraCaptureLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -250,13 +257,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 1. 将状态栏背景色直接设为与标题栏相同的深蓝色 #1E88E5，实现顶部无缝连成一片
         Window window = getWindow();
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         window.setStatusBarColor(Color.parseColor("#1E88E5"));
 
-        // 2. 将状态栏的时间、电池、5G/WiFi 图标强制设为纯白（false = 深蓝底色搭配纯白图标）
         androidx.core.view.WindowInsetsControllerCompat insetsController =
                 androidx.core.view.WindowCompat.getInsetsController(window, window.getDecorView());
         if (insetsController != null) {
@@ -277,6 +282,7 @@ public class MainActivity extends AppCompatActivity {
         initAdapters();
         initListeners();
         updateProfileDisplay();
+        updateMuteUI();
         switchPage(1);
         connectWebSocket();
     }
@@ -362,6 +368,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         updateProfileDisplay();
+        updateMuteUI();
+        if (dialogManager != null) {
+            dialogManager.updateScreenLockOverlay(isScreenLocked, myRole);
+        }
         updateAffairsBadge();
 
         if (needReconnect) {
@@ -407,6 +417,12 @@ public class MainActivity extends AppCompatActivity {
         btnPanelRandomPick = findViewById(R.id.btnPanelRandomPick);
         itemPanelStartVote = findViewById(R.id.itemPanelStartVote);
         btnPanelStartVote = findViewById(R.id.btnPanelStartVote);
+        itemPanelGlobalMute = findViewById(R.id.itemPanelGlobalMute);
+        btnPanelGlobalMute = findViewById(R.id.btnPanelGlobalMute);
+        tvPanelGlobalMuteLabel = findViewById(R.id.tvPanelGlobalMuteLabel);
+        itemPanelLockScreen = findViewById(R.id.itemPanelLockScreen);
+        btnPanelLockScreen = findViewById(R.id.btnPanelLockScreen);
+        tvPanelLockScreenLabel = findViewById(R.id.tvPanelLockScreenLabel);
 
         pageAffairsLayout = findViewById(R.id.pageAffairsLayout);
         tvAffairsSummary = findViewById(R.id.tvAffairsSummary);
@@ -433,18 +449,10 @@ public class MainActivity extends AppCompatActivity {
         btnTabAffairs = findViewById(R.id.btnTabAffairs);
         btnTabProfile = findViewById(R.id.btnTabProfile);
 
-        if (btnTabUsers != null) {
-            btnTabUsers.setText("功能区");
-        }
-        if (btnEditProfileName != null) {
-            btnEditProfileName.setText("修改姓名");
-        }
-        if (btnProfileReconnect != null) {
-            btnProfileReconnect.setText("重新连接");
-        }
-        if (btnSettings != null) {
-            btnSettings.setText("系统设置");
-        }
+        if (btnTabUsers != null) btnTabUsers.setText("功能区");
+        if (btnEditProfileName != null) btnEditProfileName.setText("修改姓名");
+        if (btnProfileReconnect != null) btnProfileReconnect.setText("重新连接");
+        if (btnSettings != null) btnSettings.setText("系统设置");
     }
 
     private void initAdapters() {
@@ -496,6 +504,11 @@ public class MainActivity extends AppCompatActivity {
 
         allAffairList = new ArrayList<>();
         displayAffairList = new ArrayList<>();
+        rebuildAffairsAdapter();
+        rvAffairs.setLayoutManager(new LinearLayoutManager(this));
+    }
+
+    private void rebuildAffairsAdapter() {
         affairsAdapter = new AffairsAdapter(displayAffairList, myNickname, myRole, new AffairsAdapter.OnAffairActionListener() {
             @Override
             public void onConfirm(String affairId) {
@@ -517,8 +530,9 @@ public class MainActivity extends AppCompatActivity {
                 confirmDeleteAffair(affairId);
             }
         });
-        rvAffairs.setLayoutManager(new LinearLayoutManager(this));
-        rvAffairs.setAdapter(affairsAdapter);
+        if (rvAffairs != null) {
+            rvAffairs.setAdapter(affairsAdapter);
+        }
     }
 
     private void initListeners() {
@@ -567,7 +581,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 相机拍摄发图入口
         if (btnPanelCamera != null) {
             btnPanelCamera.setOnClickListener(v -> {
                 layoutMorePanel.setVisibility(View.GONE);
@@ -611,6 +624,38 @@ public class MainActivity extends AppCompatActivity {
             btnToggleMorePanel.setText("+");
             showInitiateVoteDialog();
         });
+
+        // 新增：教师抽屉“全员禁言”按钮点击事件
+        if (btnPanelGlobalMute != null) {
+            btnPanelGlobalMute.setOnClickListener(v -> {
+                if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
+                    boolean targetMute = !isGlobalMuted;
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "set_global_mute");
+                        json.put("is_muted", targetMute);
+                        webSocket.send(json.toString());
+                        Toast.makeText(this, targetMute ? "已开启全员禁言" : "已解除全员禁言", Toast.LENGTH_SHORT).show();
+                    } catch (JSONException ignored) {}
+                }
+            });
+        }
+
+        // 新增：教师抽屉“一键锁屏”按钮点击事件
+        if (btnPanelLockScreen != null) {
+            btnPanelLockScreen.setOnClickListener(v -> {
+                if ("teacher".equalsIgnoreCase(myRole) && webSocket != null && isConnected) {
+                    boolean targetLock = !isScreenLocked;
+                    try {
+                        JSONObject json = new JSONObject();
+                        json.put("type", "set_screen_lock");
+                        json.put("is_locked", targetLock);
+                        webSocket.send(json.toString());
+                        Toast.makeText(this, targetLock ? "已锁定全班学生屏幕" : "已解除全班屏幕锁定", Toast.LENGTH_SHORT).show();
+                    } catch (JSONException ignored) {}
+                }
+            });
+        }
 
         btnFilterNotice.setOnClickListener(v -> switchAffairTab("notice"));
         btnFilterHomework.setOnClickListener(v -> switchAffairTab("homework"));
@@ -753,9 +798,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 检查当前学生未确认的“班级通知”与“班级作业”，同步控制三个红点的显隐
-     */
     private void updateAffairsBadge() {
         if ("teacher".equalsIgnoreCase(myRole)) {
             if (badgeAffairsDot != null) badgeAffairsDot.setVisibility(View.GONE);
@@ -1193,12 +1235,16 @@ public class MainActivity extends AppCompatActivity {
         tvProfileNickname.setText("姓名：" + displayName);
         String connectionInfo = isConnected ? "已连接" : "正在连接...";
         boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
-        String roleText = isTeacher ? "教师端" : "学生端";
+        boolean isMonitor = "monitor".equalsIgnoreCase(myRole);
+        String roleText = isTeacher ? "教师端" : (isMonitor ? "班长端" : "学生端");
         tvProfileStatus.setText("服务器节点：" + currentServerIp + ":8000\n当前身份：" + roleText + "\n网络状态：" + connectionInfo);
 
+        // 班长与教师均可发布班级事务
         if (btnPublishAffair != null) {
-            btnPublishAffair.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
+            btnPublishAffair.setVisibility((isTeacher || isMonitor) ? View.VISIBLE : View.GONE);
         }
+
+        // 教师专属课堂互动与管控按钮
         if (itemPanelStartBuzz != null) {
             itemPanelStartBuzz.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         }
@@ -1208,6 +1254,14 @@ public class MainActivity extends AppCompatActivity {
         if (itemPanelStartVote != null) {
             itemPanelStartVote.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         }
+        if (itemPanelGlobalMute != null) {
+            itemPanelGlobalMute.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
+        }
+        if (itemPanelLockScreen != null) {
+            itemPanelLockScreen.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
+        }
+
+        updateTeacherControlButtonsUI();
 
         if (!TextUtils.isEmpty(myAvatarBase64)) {
             try {
@@ -1220,21 +1274,90 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateMuteUI() {
-        if (isGlobalMuted) {
-            if ("teacher".equalsIgnoreCase(myRole)) {
-                etMessage.setHint("全员禁言中 (教师发言不受限)");
-                etMessage.setEnabled(true);
-                btnSend.setEnabled(true);
+    /**
+     * 动态刷新讨论区抽屉中“全员禁言”与“一键锁屏”按钮的激活状态与配色
+     */
+    private void updateTeacherControlButtonsUI() {
+        if (btnPanelGlobalMute != null && tvPanelGlobalMuteLabel != null) {
+            if (isGlobalMuted) {
+                btnPanelGlobalMute.setText("解禁");
+                ViewCompat.setBackgroundTintList(btnPanelGlobalMute, ColorStateList.valueOf(Color.parseColor("#EF4444")));
+                btnPanelGlobalMute.setTextColor(Color.WHITE);
+                tvPanelGlobalMuteLabel.setText("已全员禁言");
+                tvPanelGlobalMuteLabel.setTextColor(Color.parseColor("#DC2626"));
             } else {
-                etMessage.setHint("全员禁言中，禁止发言");
-                etMessage.setEnabled(false);
-                btnSend.setEnabled(false);
+                btnPanelGlobalMute.setText("禁言");
+                ViewCompat.setBackgroundTintList(btnPanelGlobalMute, ColorStateList.valueOf(Color.parseColor("#FEF3C7")));
+                btnPanelGlobalMute.setTextColor(Color.parseColor("#D97706"));
+                tvPanelGlobalMuteLabel.setText("全员禁言");
+                tvPanelGlobalMuteLabel.setTextColor(Color.parseColor("#4B5563"));
             }
+        }
+
+        if (btnPanelLockScreen != null && tvPanelLockScreenLabel != null) {
+            if (isScreenLocked) {
+                btnPanelLockScreen.setText("解锁");
+                ViewCompat.setBackgroundTintList(btnPanelLockScreen, ColorStateList.valueOf(Color.parseColor("#1E293B")));
+                btnPanelLockScreen.setTextColor(Color.WHITE);
+                tvPanelLockScreenLabel.setText("已锁定屏幕");
+                tvPanelLockScreenLabel.setTextColor(Color.parseColor("#1E293B"));
+            } else {
+                btnPanelLockScreen.setText("锁屏");
+                ViewCompat.setBackgroundTintList(btnPanelLockScreen, ColorStateList.valueOf(Color.parseColor("#E2E8F0")));
+                btnPanelLockScreen.setTextColor(Color.parseColor("#334155"));
+                tvPanelLockScreenLabel.setText("锁定屏幕");
+                tvPanelLockScreenLabel.setTextColor(Color.parseColor("#4B5563"));
+            }
+        }
+    }
+
+    /**
+     * 完善被禁言者的输入框与底部栏 UI 状态（同时响应全员禁言与个人单独禁言）
+     */
+    private void updateMuteUI() {
+        updateTeacherControlButtonsUI();
+
+        boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
+        boolean effectiveMuted = !isTeacher && (isGlobalMuted || isMyUserMuted);
+
+        if (effectiveMuted) {
+            etMessage.setText("");
+            if (isMyUserMuted) {
+                etMessage.setHint("您已被教师单独禁言，暂停发言");
+            } else {
+                etMessage.setHint("全员禁言开启中，暂停发言");
+            }
+            etMessage.setHintTextColor(Color.parseColor("#DC2626"));
+            etMessage.setEnabled(false);
+            layoutInputBar.setBackgroundColor(Color.parseColor("#F3F4F6"));
+
+            btnSend.setEnabled(false);
+            ViewCompat.setBackgroundTintList(btnSend, ColorStateList.valueOf(Color.parseColor("#D1D5DB")));
+            btnSend.setTextColor(Color.parseColor("#9CA3AF"));
+
+            btnToggleMorePanel.setEnabled(false);
+            ViewCompat.setBackgroundTintList(btnToggleMorePanel, ColorStateList.valueOf(Color.parseColor("#D1D5DB")));
+            if (layoutMorePanel != null) {
+                layoutMorePanel.setVisibility(View.GONE);
+            }
+            btnToggleMorePanel.setText("+");
         } else {
-            etMessage.setHint("请输入文本");
+            if (isGlobalMuted && isTeacher) {
+                etMessage.setHint("全员禁言中 (教师发言不受限)");
+                etMessage.setHintTextColor(Color.parseColor("#D97706"));
+            } else {
+                etMessage.setHint("请输入文本...");
+                etMessage.setHintTextColor(Color.parseColor("#9CA3AF"));
+            }
             etMessage.setEnabled(true);
+            layoutInputBar.setBackgroundColor(Color.WHITE);
+
             btnSend.setEnabled(true);
+            ViewCompat.setBackgroundTintList(btnSend, ColorStateList.valueOf(Color.parseColor("#1E88E5")));
+            btnSend.setTextColor(Color.WHITE);
+
+            btnToggleMorePanel.setEnabled(true);
+            ViewCompat.setBackgroundTintList(btnToggleMorePanel, ColorStateList.valueOf(Color.parseColor("#9CA3AF")));
         }
     }
 
@@ -1256,6 +1379,8 @@ public class MainActivity extends AppCompatActivity {
                         if (!TextUtils.isEmpty(myAvatarBase64)) {
                             userAvatarMap.put(myNickname, myAvatarBase64);
                         }
+                        rebuildAffairsAdapter();
+                        applyAffairFilter();
                         updateProfileDisplay();
                         updateAffairsBadge();
 
@@ -1347,11 +1472,19 @@ public class MainActivity extends AppCompatActivity {
                         JSONObject json = new JSONObject(text);
                         String type = json.optString("type", "chat");
 
+                        // 1. 全局状态与名册/考勤数据优先处理（无论在大厅还是在小组房间均同步）
                         if ("room_list".equals(type)) {
                             parseAndRefreshRoomList(json.optJSONArray("rooms"));
                             return;
                         } else if ("roster_update".equals(type)) {
                             parseAndRefreshRoster(json.optJSONArray("roster"));
+                            return;
+                        } else if ("attendance_logs_result".equals(type)) {
+                            RosterDataBridge.dispatchAttendanceLogs(
+                                    json.optString("date", ""),
+                                    json.optJSONArray("logs"),
+                                    json.optJSONArray("active_dates")
+                            );
                             return;
                         } else if ("classroom_title_update".equals(type)) {
                             String newTitle = json.optString("classroom_title", "");
@@ -1359,6 +1492,23 @@ public class MainActivity extends AppCompatActivity {
                                 currentClassroomTitle = newTitle;
                                 tvTitle.setText(currentClassroomTitle + (isConnected ? " (在线)" : ""));
                                 RosterDataBridge.setClassroomTitle(currentClassroomTitle);
+                            }
+                            return;
+                        } else if ("global_mute_state".equals(type)) {
+                            isGlobalMuted = json.optBoolean("is_muted", false);
+                            RosterDataBridge.setGlobalMuted(isGlobalMuted);
+                            updateMuteUI();
+                            if (isInIndependentRoom) {
+                                GameSocketBridge.dispatchMessage(json);
+                            }
+                            return;
+                        } else if ("screen_lock_state".equals(type)) {
+                            isScreenLocked = json.optBoolean("is_locked", false);
+                            RosterDataBridge.setScreenLocked(isScreenLocked);
+                            dialogManager.updateScreenLockOverlay(isScreenLocked, myRole);
+                            updateTeacherControlButtonsUI();
+                            if (isInIndependentRoom) {
+                                GameSocketBridge.dispatchMessage(json);
                             }
                             return;
                         }
@@ -1439,15 +1589,31 @@ public class MainActivity extends AppCompatActivity {
                                 RosterDataBridge.setClassroomTitle(currentClassroomTitle);
                             }
 
+                            String verifiedName = json.optString("my_verified_name", "");
+                            if (!TextUtils.isEmpty(verifiedName) && TextUtils.isEmpty(myNickname)) {
+                                myNickname = verifiedName;
+                                sharedPreferences.edit().putString(KEY_NICKNAME, myNickname).apply();
+                            }
+
                             String verifiedRole = json.optString("my_verified_role", "");
                             if (!TextUtils.isEmpty(verifiedRole)) {
                                 myRole = verifiedRole;
                                 sharedPreferences.edit().putString(KEY_USER_ROLE, myRole).apply();
+                                rebuildAffairsAdapter();
                                 updateProfileDisplay();
                             }
 
                             isGlobalMuted = json.optBoolean("is_global_muted", false);
+                            isScreenLocked = json.optBoolean("is_screen_locked", false);
+                            RosterDataBridge.setGlobalMuted(isGlobalMuted);
+                            RosterDataBridge.setScreenLocked(isScreenLocked);
+
+                            parseAndRefreshRoomList(json.optJSONArray("rooms"));
+                            parseAndRefreshRoster(json.optJSONArray("roster"));
+                            parseAndRefreshAffairs(json.optJSONArray("affairs"));
+
                             updateMuteUI();
+                            dialogManager.updateScreenLockOverlay(isScreenLocked, myRole);
 
                             latestBuzzActive = json.optBoolean("buzz_active", false);
                             JSONObject buzzData = json.optJSONObject("buzz_data");
@@ -1477,21 +1643,19 @@ public class MainActivity extends AppCompatActivity {
                                 recyclerViewChat.scrollToPosition(messageList.size() - 1);
                             }
 
-                            parseAndRefreshRoomList(json.optJSONArray("rooms"));
-                            parseAndRefreshRoster(json.optJSONArray("roster"));
-                            parseAndRefreshAffairs(json.optJSONArray("affairs"));
-
                         } else if ("affair_update".equals(type)) {
                             JSONArray affairsArr = json.optJSONArray("affairs");
                             parseAndRefreshAffairs(affairsArr);
 
-                        } else if ("global_mute_state".equals(type)) {
-                            isGlobalMuted = json.optBoolean("is_muted", false);
-                            updateMuteUI();
+                        } else if ("chat_cleared".equals(type)) {
+                            messageList.clear();
+                            chatAdapter.notifyDataSetChanged();
 
                         } else if ("role_verified".equals(type)) {
                             myRole = json.optString("role", DEFAULT_ROLE);
                             sharedPreferences.edit().putString(KEY_USER_ROLE, myRole).apply();
+                            rebuildAffairsAdapter();
+                            applyAffairFilter();
                             updateProfileDisplay();
                             updateAffairsBadge();
 
@@ -1583,7 +1747,9 @@ public class MainActivity extends AppCompatActivity {
     private void parseAndRefreshRoster(JSONArray rosterArr) {
         if (rosterArr == null) return;
         rosterUserList.clear();
-        int onlineCount = 0;
+
+        boolean foundMyMute = false;
+        String foundMyRole = "";
 
         for (int i = 0; i < rosterArr.length(); i++) {
             JSONObject u = rosterArr.optJSONObject(i);
@@ -1594,7 +1760,11 @@ public class MainActivity extends AppCompatActivity {
                 boolean uOnline = u.optBoolean("is_online", false);
                 boolean uMuted = u.optBoolean("is_muted", false);
                 int uScore = u.optInt("score", 0);
-                if (uOnline) onlineCount++;
+
+                if (!TextUtils.isEmpty(myNickname) && myNickname.equals(uName)) {
+                    foundMyMute = uMuted;
+                    foundMyRole = uRole;
+                }
 
                 rosterUserList.add(new RosterUser(uName, uRole, uAvatar, uOnline, uMuted, uScore));
             }
@@ -1602,6 +1772,36 @@ public class MainActivity extends AppCompatActivity {
         tvOnlineCount.setText("小组大厅");
 
         RosterDataBridge.updateRoster(rosterUserList);
+
+        // 实时同步本人的单独禁言状态与角色变动（例如教师在名册中将我设为班长或禁言）
+        boolean roleChanged = !TextUtils.isEmpty(foundMyRole) && !foundMyRole.equalsIgnoreCase(myRole);
+        boolean muteChanged = (foundMyMute != isMyUserMuted);
+        isMyUserMuted = foundMyMute;
+
+        if (roleChanged) {
+            myRole = foundMyRole;
+            sharedPreferences.edit().putString(KEY_USER_ROLE, myRole).apply();
+            rebuildAffairsAdapter();
+            applyAffairFilter();
+            updateProfileDisplay();
+            updateAffairsBadge();
+        }
+
+        if (muteChanged || roleChanged) {
+            updateMuteUI();
+            if (isInIndependentRoom) {
+                try {
+                    JSONObject syncObj = new JSONObject();
+                    syncObj.put("type", "my_identity");
+                    syncObj.put("my_name", myNickname);
+                    syncObj.put("my_role", myRole);
+                    syncObj.put("is_muted", isMyUserMuted);
+                    syncObj.put("is_global_muted", isGlobalMuted);
+                    syncObj.put("is_screen_locked", isScreenLocked);
+                    GameSocketBridge.dispatchMessage(syncObj);
+                } catch (JSONException ignored) {}
+            }
+        }
     }
 
     private void parseAndRefreshAffairs(JSONArray affairsArr) {

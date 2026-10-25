@@ -16,6 +16,9 @@ class ClassAffair:
         self.deadline = deadline
         self.timestamp = timestamp if timestamp else int(time.time() * 1000)
         self.confirmed_students: Set[str] = confirmed_students if confirmed_students is not None else set()
+        self.is_global_muted: bool = False
+        self.is_screen_locked: bool = False
+        self.classroom_title: str = db.get_setting("classroom_title", "数字化课堂 [讨论频道]")
 
     def to_dict(self) -> dict:
         return {
@@ -41,6 +44,7 @@ class RoomInfo:
         self.members: Dict[WebSocket, dict] = {}
         self.created_at = int(time.time() * 1000)
         self.history: List[dict] = db.load_recent_chat(room_id, limit=50)
+        self.canvas_strokes: List[dict] = []  # 新增：小组协同白板笔迹缓存
 
     def get_student_count(self) -> int:
         return sum(1 for m in self.members.values() if m.get("role") != "teacher")
@@ -105,11 +109,20 @@ class RoomManager:
                 "avatar": avatar,
                 "is_online": True,
                 "is_muted": False,
-                "last_seen": now_ts
+                "last_seen": now_ts,
+                "score": 0
             }
         else:
             self.roster[name]["is_online"] = True
-            self.roster[name]["role"] = role
+            # 若数据库里已经是班长(monitor)，且重连未携带teacher权限，则保留班长身份不被冲掉
+            existing_role = self.roster[name].get("role", "student")
+            if role == "teacher":
+                self.roster[name]["role"] = "teacher"
+            elif existing_role == "monitor":
+                self.roster[name]["role"] = "monitor"
+            else:
+                self.roster[name]["role"] = role
+
             self.roster[name]["last_seen"] = now_ts
             if avatar:
                 self.roster[name]["avatar"] = avatar

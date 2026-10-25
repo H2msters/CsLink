@@ -126,6 +126,9 @@ async def websocket_chat_endpoint(
     target_room_id = room.strip() if room and room.strip() else "lobby"
 
     user_record = manager.register_user(actual_name, actual_role)
+    # 以花名册持久化后的真实角色为准（例如已被教师任命为班长的学生）
+    actual_role = user_record.get("role", actual_role)
+
     member_info = {
         "name": actual_name,
         "role": actual_role,
@@ -143,6 +146,7 @@ async def websocket_chat_endpoint(
         "my_verified_role": actual_role,
         "my_verified_name": actual_name,
         "is_global_muted": manager.is_global_muted,
+        "is_screen_locked": manager.is_screen_locked,
         "buzz_active": buzz_session.is_active,
         "buzz_data": buzz_session.get_state_payload(),
         "vote_active": vote_session.is_active,
@@ -176,6 +180,25 @@ async def websocket_chat_endpoint(
                     "type": "my_identity",
                     "my_name": actual_name,
                     "my_role": current_user_role,
+                    "is_muted": sender_record.get("is_muted", False),
+                    "is_global_muted": manager.is_global_muted,
+                    "is_screen_locked": manager.is_screen_locked,
+                    "timestamp": int(time.time() * 1000)
+                }, ensure_ascii=False))
+                continue
+
+            # ---------------- 考勤日历加分记录查询指令 ----------------
+            if msg_type == "get_attendance_logs":
+                query_date = data.get("date", "").strip()
+                if not query_date:
+                    query_date = time.strftime("%Y-%m-%d", time.localtime())
+                logs = db.get_score_logs_by_date(query_date)
+                active_dates = db.get_active_log_dates()
+                await websocket.send_text(json.dumps({
+                    "type": "attendance_logs_result",
+                    "date": query_date,
+                    "logs": logs,
+                    "active_dates": active_dates,
                     "timestamp": int(time.time() * 1000)
                 }, ensure_ascii=False))
                 continue
@@ -362,7 +385,53 @@ async def websocket_chat_endpoint(
                     await broadcast_room_list_update()
                 continue
 
-            # ---------------- 教师管控指令 ----------------
+            # ---------------- 班级事务指令（教师与班长均有权操作） ----------------
+            if current_user_role in ("teacher", "monitor"):
+                if msg_type == "publish_affair":
+                    role_label = "教师" if current_user_role == "teacher" else "班长"
+                    publisher_display = f"{actual_name} ({role_label})"
+                    new_affair = manager.add_affair(
+                        title=data.get("title", ""),
+                        content=data.get("content", ""),
+                        affair_type=data.get("affair_type", "notice"),
+                        publisher=publisher_display,
+                        deadline=data.get("deadline", "")
+                    )
+                    await broadcast_to_all_rooms({
+                        "type": "affair_update",
+                        "affairs": [a.to_dict() for a in manager.affairs],
+                        "new_item": new_affair.to_dict(),
+                        "timestamp": int(time.time() * 1000)
+                    })
+                    continue
+
+                elif msg_type == "edit_affair":
+                    affair_id = data.get("affair_id")
+                    if manager.edit_affair(
+                        affair_id=affair_id,
+                        title=data.get("title", ""),
+                        content=data.get("content", ""),
+                        affair_type=data.get("affair_type", "notice"),
+                        deadline=data.get("deadline", "")
+                    ):
+                        await broadcast_to_all_rooms({
+                            "type": "affair_update",
+                            "affairs": [a.to_dict() for a in manager.affairs],
+                            "timestamp": int(time.time() * 1000)
+                        })
+                    continue
+
+                elif msg_type == "delete_affair":
+                    affair_id = data.get("affair_id")
+                    if manager.delete_affair(affair_id):
+                        await broadcast_to_all_rooms({
+                            "type": "affair_update",
+                            "affairs": [a.to_dict() for a in manager.affairs],
+                            "timestamp": int(time.time() * 1000)
+                        })
+                    continue
+
+            # ---------------- 教师专属管控指令 ----------------
             if current_user_role == "teacher":
                 if msg_type == "award_score":
                     target = data.get("target_student", "").strip()
@@ -370,18 +439,19 @@ async def websocket_chat_endpoint(
                     reason = data.get("reason", "课堂表现优异").strip()
 
                     if target:
-                        new_score = db.add_user_score(target, delta)
+                        new_score = db.add_user_score(target, delta, reason=reason, operator=actual_name)
                         if target in manager.roster:
                             manager.roster[target]["score"] = new_score
 
                         await broadcast_roster_update()
 
+                        sign_str = f"+{delta}" if delta >= 0 else f"{delta}"
                         notice_msg = {
                             "type": "system",
                             "sender": "系统",
                             "role": "teacher",
                             "avatar": "",
-                            "content": f"[课堂积分] 教师奖励【{target}】+{delta}分（{reason}），当前总分：{new_score}分",
+                            "content": f"[课堂积分] 教师为【{target}】记分 {sign_str}分（{reason}），当前总分：{new_score}分",
                             "timestamp": int(time.time() * 1000)
                         }
                         if "lobby" in manager.rooms:
@@ -389,9 +459,48 @@ async def websocket_chat_endpoint(
                         await broadcast_to_all_rooms(notice_msg)
                     continue
 
+                elif msg_type == "set_screen_lock":
+                    manager.is_screen_locked = bool(data.get("is_locked", False))
+                    await broadcast_to_all_rooms({
+                        "type": "screen_lock_state",
+                        "is_locked": manager.is_screen_locked,
+                        "timestamp": int(time.time() * 1000)
+                    })
+                    lock_notice = {
+                        "type": "system",
+                        "sender": "系统",
+                        "role": "teacher",
+                        "avatar": "",
+                        "content": "[课堂管控] 教师已开启全班屏幕锁定，请抬头专心听讲" if manager.is_screen_locked else "[课堂管控] 教师已解除屏幕锁定",
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    if "lobby" in manager.rooms:
+                        manager.rooms["lobby"].add_message(lock_notice)
+                    await broadcast_to_all_rooms(lock_notice)
+                    continue
+
+                elif msg_type == "set_global_mute":
+                    manager.is_global_muted = bool(data.get("is_muted", False))
+                    await broadcast_to_all_rooms({
+                        "type": "global_mute_state",
+                        "is_muted": manager.is_global_muted,
+                        "timestamp": int(time.time() * 1000)
+                    })
+                    mute_notice = {
+                        "type": "system",
+                        "sender": "系统",
+                        "role": "teacher",
+                        "avatar": "",
+                        "content": "[课堂管控] 教师已开启全员禁言" if manager.is_global_muted else "[课堂管控] 教师已解除全员禁言",
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    if "lobby" in manager.rooms:
+                        manager.rooms["lobby"].add_message(mute_notice)
+                    await broadcast_to_all_rooms(mute_notice)
+                    continue
+
                 elif msg_type == "clear_chat":
-                    if hasattr(db, "clear_chat_history_db"):
-                        db.clear_chat_history_db("lobby")
+                    db.clear_chat_history_db("lobby")
                     if "lobby" in manager.rooms:
                         manager.rooms["lobby"].history.clear()
 
@@ -432,15 +541,6 @@ async def websocket_chat_endpoint(
                         }
                         manager.rooms["lobby"].add_message(notice_msg)
                         await broadcast_to_all_rooms(notice_msg)
-                    continue
-
-                elif msg_type == "set_global_mute":
-                    manager.is_global_muted = data.get("is_muted", False)
-                    await broadcast_to_all_rooms({
-                        "type": "global_mute_state",
-                        "is_muted": manager.is_global_muted,
-                        "timestamp": int(time.time() * 1000)
-                    })
                     continue
 
                 elif msg_type == "start_buzz":
@@ -554,11 +654,10 @@ async def websocket_chat_endpoint(
                     target_student = data.get("target_name")
                     operation = data.get("operation")
                     
-                    # 1. 教师删除学生操作
+                    # 1. 教师删除学生操作（修复原先不存在的 manager.online_users 报错）
                     if operation == "delete_user":
                         db.delete_user_db(target_student)
                         manager.roster.pop(target_student, None)
-                        manager.online_users.pop(target_student, None)
                         
                         await broadcast_roster_update()
                         
@@ -575,7 +674,7 @@ async def websocket_chat_endpoint(
                         await broadcast_to_all_rooms(delete_notice)
                         continue
 
-                    # 2. 其他原有管理操作
+                    # 2. 其他管理操作
                     if target_student in manager.roster:
                         if operation == "toggle_mute":
                             new_mute_state = not manager.roster[target_student]["is_muted"]
@@ -583,53 +682,28 @@ async def websocket_chat_endpoint(
                         elif operation == "set_role":
                             new_role = data.get("new_role", "student")
                             manager.update_user_role(target_student, new_role)
+                            # 同步更新该学生在线 WebSocket 成员对象的 role
+                            for r in manager.rooms.values():
+                                for m_ws, m_info in r.members.items():
+                                    if m_info.get("name") == target_student:
+                                        m_info["role"] = new_role
+                            role_cn = "班长" if new_role == "monitor" else "普通学生"
+                            role_notice = {
+                                "type": "system",
+                                "sender": "系统",
+                                "role": "teacher",
+                                "avatar": "",
+                                "content": f"[职务任免] 教师已将【{target_student}】设为【{role_cn}】",
+                                "timestamp": int(time.time() * 1000)
+                            }
+                            if "lobby" in manager.rooms:
+                                manager.rooms["lobby"].add_message(role_notice)
+                            await broadcast_to_all_rooms(role_notice)
                         elif operation == "rename":
                             new_name = data.get("new_name", target_student).strip()
                             if new_name and new_name != target_student:
                                 manager.rename_student(target_student, new_name)
                         await broadcast_roster_update()
-                    continue
-
-                elif msg_type == "publish_affair":
-                    new_affair = manager.add_affair(
-                        title=data.get("title", ""),
-                        content=data.get("content", ""),
-                        affair_type=data.get("affair_type", "notice"),
-                        publisher=actual_name,
-                        deadline=data.get("deadline", "")
-                    )
-                    await broadcast_to_all_rooms({
-                        "type": "affair_update",
-                        "affairs": [a.to_dict() for a in manager.affairs],
-                        "new_item": new_affair.to_dict(),
-                        "timestamp": int(time.time() * 1000)
-                    })
-                    continue
-
-                elif msg_type == "edit_affair":
-                    affair_id = data.get("affair_id")
-                    if manager.edit_affair(
-                        affair_id=affair_id,
-                        title=data.get("title", ""),
-                        content=data.get("content", ""),
-                        affair_type=data.get("affair_type", "notice"),
-                        deadline=data.get("deadline", "")
-                    ):
-                        await broadcast_to_all_rooms({
-                            "type": "affair_update",
-                            "affairs": [a.to_dict() for a in manager.affairs],
-                            "timestamp": int(time.time() * 1000)
-                        })
-                    continue
-
-                elif msg_type == "delete_affair":
-                    affair_id = data.get("affair_id")
-                    if manager.delete_affair(affair_id):
-                        await broadcast_to_all_rooms({
-                            "type": "affair_update",
-                            "affairs": [a.to_dict() for a in manager.affairs],
-                            "timestamp": int(time.time() * 1000)
-                        })
                     continue
 
             # ---------------- 学生提交抢答 ----------------
@@ -674,7 +748,7 @@ async def websocket_chat_endpoint(
                     })
                 continue
 
-            # ---------------- 组内猜拳对决（师生无缝同乐） ----------------
+            # ---------------- 组内猜拳对决 ----------------
             if msg_type == "initiate_game":
                 curr_room = manager.get_room_for_ws(websocket)
                 if curr_room and curr_room.room_id != "lobby":
@@ -758,18 +832,69 @@ async def websocket_chat_endpoint(
                     })
                 continue
 
-            # ---------------- 资料更新 ----------------
+            # ---------------- 组内协同草稿白板 ----------------
+            elif msg_type == "canvas_open":
+                curr_room = manager.get_room_for_ws(websocket)
+                if curr_room and curr_room.room_id != "lobby":
+                    if data.get("announce", False):
+                        card_msg = {
+                            "type": "card_canvas",
+                            "sender": actual_name,
+                            "role": current_user_role,
+                            "avatar": sender_record.get("avatar", ""),
+                            "content": f"【{actual_name}】开启了协同白板草稿",
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        curr_room.add_message(card_msg)
+                        await broadcast_to_room(curr_room, card_msg)
+
+                    await websocket.send_text(json.dumps({
+                        "type": "canvas_init",
+                        "strokes": curr_room.canvas_strokes,
+                        "timestamp": int(time.time() * 1000)
+                    }, ensure_ascii=False))
+                continue
+
+            elif msg_type == "canvas_draw":
+                curr_room = manager.get_room_for_ws(websocket)
+                if curr_room and curr_room.room_id != "lobby":
+                    stroke = data.get("stroke")
+                    if stroke:
+                        curr_room.canvas_strokes.append(stroke)
+                        if len(curr_room.canvas_strokes) > 500:
+                            curr_room.canvas_strokes.pop(0)
+                        await broadcast_to_room(curr_room, {
+                            "type": "canvas_draw",
+                            "sender": actual_name,
+                            "stroke": stroke,
+                            "timestamp": int(time.time() * 1000)
+                        })
+                continue
+
+            elif msg_type == "canvas_clear":
+                curr_room = manager.get_room_for_ws(websocket)
+                if curr_room and curr_room.room_id != "lobby":
+                    curr_room.canvas_strokes.clear()
+                    await broadcast_to_room(curr_room, {
+                        "type": "canvas_clear",
+                        "sender": actual_name,
+                        "timestamp": int(time.time() * 1000)
+                    })
+                continue
+
+            # ---------------- 资料更新（修复改名先后顺序 Bug） ----------------
             if msg_type == "set_name":
                 new_name = data.get("username", actual_name).strip()
                 new_avatar = data.get("avatar", "")
                 if new_name:
                     if new_name != actual_name:
-                        old_data = manager.roster.pop(actual_name, {})
+                        old_name = actual_name
+                        old_data = manager.roster.pop(old_name, {})
                         old_data["name"] = new_name
                         old_data["avatar"] = new_avatar
                         manager.roster[new_name] = old_data
+                        db.rename_user(old_name, new_name)
                         actual_name = new_name
-                        db.rename_user(actual_name, new_name)
                     else:
                         manager.roster[actual_name]["avatar"] = new_avatar
 

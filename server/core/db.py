@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import time
 from typing import Dict, List, Optional
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "classroom.db")
@@ -26,7 +27,6 @@ def init_db():
         )
         """)
         
-        # 检查现有老表是否缺失 score 字段，若缺失则自动热补丁添加
         cursor.execute("PRAGMA table_info(users)")
         user_cols = [row["name"] for row in cursor.fetchall()]
         if "score" not in user_cols:
@@ -46,7 +46,6 @@ def init_db():
         )
         """)
         
-        # 自动热补丁添加缺失字段
         cursor.execute("PRAGMA table_info(affairs)")
         columns = [row["name"] for row in cursor.fetchall()]
         if "deadline" not in columns:
@@ -86,7 +85,66 @@ def init_db():
         )
         """)
 
+        # 6. 新增：课堂考勤与积分明细流水表（支撑考勤日历功能）
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS score_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_name TEXT NOT NULL,
+            delta INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            operator TEXT NOT NULL,
+            date_str TEXT NOT NULL,
+            timestamp INTEGER NOT NULL
+        )
+        """)
+
         conn.commit()
+
+# ---------------- 考勤与积分日志持久化 ----------------
+
+def add_user_score(name: str, delta: int = 1, reason: str = "课堂表现优异", operator: str = "教师") -> int:
+    """增加或调整学生积分、写入考勤日历流水，并返回最新总分"""
+    now_ts = int(time.time() * 1000)
+    date_str = time.strftime("%Y-%m-%d", time.localtime(now_ts / 1000))
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET score = coalesce(score, 0) + ? WHERE name = ?", (delta, name))
+        cursor.execute("""
+        INSERT INTO score_logs (student_name, delta, reason, operator, date_str, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, (name, delta, reason, operator, date_str, now_ts))
+        cursor.execute("SELECT score FROM users WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        conn.commit()
+        return row["score"] if row and row["score"] is not None else 0
+
+def get_score_logs_by_date(date_str: str) -> List[dict]:
+    """查询指定日期（YYYY-MM-DD）的所有加分/考勤明细"""
+    logs = []
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT id, student_name, delta, reason, operator, date_str, timestamp
+        FROM score_logs WHERE date_str = ? ORDER BY timestamp DESC
+        """, (date_str,))
+        for row in cursor.fetchall():
+            logs.append({
+                "id": row["id"],
+                "student_name": row["student_name"],
+                "delta": row["delta"],
+                "reason": row["reason"],
+                "operator": row["operator"],
+                "date_str": row["date_str"],
+                "timestamp": row["timestamp"]
+            })
+    return logs
+
+def get_active_log_dates() -> List[str]:
+    """获取所有存在加分记录的日期列表"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT date_str FROM score_logs ORDER BY date_str DESC")
+        return [row["date_str"] for row in cursor.fetchall()]
 
 # ---------------- 图书角持久化 ----------------
 
@@ -119,7 +177,6 @@ def insert_book(book_id: str, title: str, filename: str, file_size: int, uploade
         conn.commit()
 
 def delete_book_db(book_id: str) -> Optional[str]:
-    """删除记录并返回对应的文件名以便清理物理磁盘"""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT filename FROM books WHERE book_id = ?", (book_id,))
@@ -168,17 +225,15 @@ def rename_user(old_name: str, new_name: str):
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET name = ? WHERE name = ?", (new_name, old_name))
+        cursor.execute("UPDATE score_logs SET student_name = ? WHERE student_name = ?", (new_name, old_name))
         conn.commit()
 
-def add_user_score(name: str, delta: int = 1) -> int:
-    """增加或调整学生积分并返回最新总分"""
+def delete_user_db(name: str):
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET score = coalesce(score, 0) + ? WHERE name = ?", (delta, name))
-        cursor.execute("SELECT score FROM users WHERE name = ?", (name,))
-        row = cursor.fetchone()
+        cursor.execute("DELETE FROM users WHERE name = ?", (name,))
+        cursor.execute("DELETE FROM score_logs WHERE student_name = ?", (name,))
         conn.commit()
-        return row["score"] if row and row["score"] is not None else 0
 
 # ---------------- 班级事务持久化 ----------------
 
@@ -271,6 +326,12 @@ def insert_chat_message(room_id: str, msg_type: str, sender: str, role: str, ava
         """, (room_id, msg_type, sender, role, avatar, content, timestamp))
         conn.commit()
 
+def clear_chat_history_db(room_id: str = "lobby"):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM chat_history WHERE room_id = ?", (room_id,))
+        conn.commit()
+
 # ---------------- 系统全局配置项 ----------------
 
 def get_setting(key: str, default: str = "") -> str:
@@ -289,11 +350,4 @@ def set_setting(key: str, value: str):
         INSERT INTO settings (key, value) VALUES (?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
         """, (key, value))
-        conn.commit()
-
-def delete_user_db(name: str):
-    """从数据库彻底删除学生记录"""
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE name = ?", (name,))
         conn.commit()

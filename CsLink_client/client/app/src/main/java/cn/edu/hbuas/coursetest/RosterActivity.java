@@ -1,15 +1,21 @@
 package cn.edu.hbuas.coursetest;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CalendarView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -21,15 +27,20 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class RosterActivity extends AppCompatActivity implements RosterDataBridge.OnRosterChangeListener {
 
     private Button btnBack;
+    private Button btnAttendanceCalendar;
     private TextView tvClassroomName;
     private Button btnEditClassName;
     private TextView tvRosterSummary;
@@ -43,6 +54,15 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
     private String myNickname = "";
     private String myRole = "student";
     private boolean isHonorRollMode = false;
+
+    // 考勤日历弹窗组件
+    private Dialog calendarDialog;
+    private TextView tvSelectedDateTitle;
+    private TextView tvSelectedDateSummary;
+    private TextView tvEmptyAttendanceLogs;
+    private final List<String> attendanceLogDisplayList = new ArrayList<>();
+    private ArrayAdapter<String> attendanceLogAdapter;
+    private String currentSelectedDateStr = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +91,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
 
     private void initViews() {
         btnBack = findViewById(R.id.btnBack);
+        btnAttendanceCalendar = findViewById(R.id.btnAttendanceCalendar);
         tvClassroomName = findViewById(R.id.tvClassroomName);
         btnEditClassName = findViewById(R.id.btnEditClassName);
         tvRosterSummary = findViewById(R.id.tvRosterSummary);
@@ -79,12 +100,14 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
         lvRosterMembers = findViewById(R.id.lvRosterMembers);
 
         btnBack.setOnClickListener(v -> finish());
+        if (btnAttendanceCalendar != null) {
+            btnAttendanceCalendar.setOnClickListener(v -> showAttendanceCalendarDialog());
+        }
 
         boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
         btnEditClassName.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         btnEditClassName.setOnClickListener(v -> showEditClassroomTitleDialog());
 
-        // 双选分段胶囊点击
         btnSortDefault.setOnClickListener(v -> {
             if (isHonorRollMode) {
                 isHonorRollMode = false;
@@ -98,6 +121,100 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
                 isHonorRollMode = true;
                 updateSortButtonsUI();
                 applySortAndRefresh();
+            }
+        });
+    }
+
+    private void showAttendanceCalendarDialog() {
+        if (calendarDialog != null && calendarDialog.isShowing()) {
+            calendarDialog.dismiss();
+        }
+
+        calendarDialog = new Dialog(this);
+        calendarDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_attendance_calendar, null);
+        calendarDialog.setContentView(view);
+
+        if (calendarDialog.getWindow() != null) {
+            calendarDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            calendarDialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        Button btnClose = view.findViewById(R.id.btnCloseCalendar);
+        CalendarView calendarView = view.findViewById(R.id.calendarViewAttendance);
+        tvSelectedDateTitle = view.findViewById(R.id.tvSelectedDateTitle);
+        tvSelectedDateSummary = view.findViewById(R.id.tvSelectedDateSummary);
+        ListView lvLogs = view.findViewById(R.id.lvAttendanceLogs);
+        tvEmptyAttendanceLogs = view.findViewById(R.id.tvEmptyAttendanceLogs);
+
+        attendanceLogAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, attendanceLogDisplayList);
+        lvLogs.setAdapter(attendanceLogAdapter);
+
+        btnClose.setOnClickListener(v -> calendarDialog.dismiss());
+
+        currentSelectedDateStr = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        requestAttendanceLogsForDate(currentSelectedDateStr);
+
+        calendarView.setOnDateChangeListener((cv, year, month, dayOfMonth) -> {
+            currentSelectedDateStr = String.format(Locale.getDefault(), "%04d-%02d-%02d", year, month + 1, dayOfMonth);
+            requestAttendanceLogsForDate(currentSelectedDateStr);
+        });
+
+        calendarDialog.show();
+    }
+
+    private void requestAttendanceLogsForDate(String dateStr) {
+        if (tvSelectedDateTitle != null) {
+            tvSelectedDateTitle.setText(dateStr + " 考勤加分明细");
+        }
+        try {
+            JSONObject req = new JSONObject();
+            req.put("type", "get_attendance_logs");
+            req.put("date", dateStr);
+            GameSocketBridge.sendJson(req);
+        } catch (JSONException ignored) {}
+    }
+
+    @Override
+    public void onAttendanceLogsReceived(String date, JSONArray logs, JSONArray activeDates) {
+        runOnUiThread(() -> {
+            if (calendarDialog == null || !calendarDialog.isShowing()) return;
+
+            attendanceLogDisplayList.clear();
+            int totalScoreAdded = 0;
+            SimpleDateFormat timeFmt = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+
+            if (logs != null && logs.length() > 0) {
+                for (int i = 0; i < logs.length(); i++) {
+                    JSONObject item = logs.optJSONObject(i);
+                    if (item != null) {
+                        String stu = item.optString("student_name", "未知");
+                        int delta = item.optInt("delta", 1);
+                        String reason = item.optString("reason", "课堂表现");
+                        long ts = item.optLong("timestamp", System.currentTimeMillis());
+                        totalScoreAdded += delta;
+
+                        String sign = delta >= 0 ? ("+" + delta) : String.valueOf(delta);
+                        String timeStr = timeFmt.format(new Date(ts));
+                        String line = "[" + timeStr + "]  " + stu + "   " + sign + "分\n原因：" + reason;
+                        attendanceLogDisplayList.add(line);
+                    }
+                }
+            }
+
+            if (tvSelectedDateTitle != null) {
+                tvSelectedDateTitle.setText(date + " 考勤加分明细");
+            }
+            if (tvSelectedDateSummary != null) {
+                int count = logs != null ? logs.length() : 0;
+                String signTotal = totalScoreAdded >= 0 ? ("+" + totalScoreAdded) : String.valueOf(totalScoreAdded);
+                tvSelectedDateSummary.setText("共 " + count + " 人次 (累计 " + signTotal + " 分)");
+            }
+            if (tvEmptyAttendanceLogs != null) {
+                tvEmptyAttendanceLogs.setVisibility(attendanceLogDisplayList.isEmpty() ? View.VISIBLE : View.GONE);
+            }
+            if (attendanceLogAdapter != null) {
+                attendanceLogAdapter.notifyDataSetChanged();
             }
         });
     }
@@ -155,13 +272,11 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
 
         if (source != null) {
             if (isHonorRollMode) {
-                // 关键过滤：积分榜模式下彻底剔除教师，只保留学生参评
                 for (MainActivity.RosterUser u : source) {
                     if (!"teacher".equalsIgnoreCase(u.role)) {
                         displayRosterList.add(u);
                     }
                 }
-                // 按积分从高到低排序
                 Collections.sort(displayRosterList, (u1, u2) -> {
                     if (u2.score != u1.score) {
                         return Integer.compare(u2.score, u1.score);
@@ -169,7 +284,6 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
                     return u1.name.compareTo(u2.name);
                 });
             } else {
-                // 默认模式：包含教师与学生，教师置顶，在线居中，离线在后
                 displayRosterList.addAll(source);
                 Collections.sort(displayRosterList, (u1, u2) -> {
                     boolean t1 = "teacher".equalsIgnoreCase(u1.role);
@@ -251,7 +365,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
         String[] options = {
                 "奖励加分",
                 muteActionText,
-                "变更角色身份",
+                "变更角色身份 (设班长/学生)",
                 "修改姓名",
                 "移出班级 (删除该成员)"
         };
@@ -392,7 +506,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
 
                         target.score += delta;
                         applySortAndRefresh();
-                        Toast.makeText(this, "已为 " + target.name + " +" + delta + "分", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "已为 " + target.name + " +" + delta + "分（已记入考勤日历）", Toast.LENGTH_SHORT).show();
                     } catch (JSONException ignored) {}
                 })
                 .setNegativeButton("取消", null)
@@ -415,7 +529,7 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
 
     private void showChangeRoleSubDialog(MainActivity.RosterUser target) {
         String[] roles = {"student", "monitor"};
-        String[] roleLabels = {"设为普通学生", "任命为班长"};
+        String[] roleLabels = {"设为普通学生", "任命为班长 (可发布与管理班级事务)"};
         new AlertDialog.Builder(this)
                 .setTitle("调整【" + target.name + "】的身份")
                 .setItems(roleLabels, (dialog, which) -> {
@@ -458,6 +572,9 @@ public class RosterActivity extends AppCompatActivity implements RosterDataBridg
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (calendarDialog != null && calendarDialog.isShowing()) {
+            calendarDialog.dismiss();
+        }
         RosterDataBridge.clearListener();
     }
 }
