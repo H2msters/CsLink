@@ -65,6 +65,12 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <!-- 注册 AI 平台 Activity -->
+        <activity
+            android:name=".AiPlatformActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- 注册内置原生 PDF 阅读器 Activity -->
         <activity
             android:name=".PdfViewerActivity"

@@ -548,7 +548,8 @@ public class MainActivity extends AppCompatActivity {
 
         if (cardAiPlatform != null) {
             cardAiPlatform.setOnClickListener(v -> {
-                Toast.makeText(this, "正在进入AI平台...", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(MainActivity.this, AiPlatformActivity.class);
+                startActivity(intent);
             });
         }
 

@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.text.Html;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.view.LayoutInflater;
@@ -160,7 +161,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             } else {
                 vh.ivMyImage.setVisibility(View.GONE);
                 vh.tvMyContent.setVisibility(View.VISIBLE);
-                vh.tvMyContent.setText(msg.getContent());
+                setFormattedContent(vh.tvMyContent, msg.getContent());
             }
         } else {
             vh.layoutOtherMsg.setVisibility(View.VISIBLE);
@@ -183,13 +184,63 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             } else {
                 vh.ivOtherImage.setVisibility(View.GONE);
                 vh.tvOtherContent.setVisibility(View.VISIBLE);
-                vh.tvOtherContent.setText(msg.getContent());
+                setFormattedContent(vh.tvOtherContent, msg.getContent());
             }
         }
     }
 
+    /**
+     * 完美全功能 Markdown 富文本渲染器
+     */
+    private void setFormattedContent(TextView tv, String rawContent) {
+        if (TextUtils.isEmpty(rawContent)) {
+            tv.setText("");
+            return;
+        }
+
+        String formatted = rawContent;
+
+        // 1. 标题 (# 标题转为大号粗体)
+        formatted = formatted.replaceAll("(?m)^#\\s+(.*?)$", "<h3><b>$1</b></h3>");
+        formatted = formatted.replaceAll("(?m)^##\\s+(.*?)$", "<h4><b>$1</b></h4>");
+        formatted = formatted.replaceAll("(?m)^###\\s+(.*?)$", "<h5><b>$1</b></h5>");
+
+        // 2. 引用 (> 文本转为灰色斜体缩进)
+        formatted = formatted.replaceAll("(?m)^>\\s*(.*?)$", "<font color='#64748B'><blockquote><i>$1</i></blockquote></font>");
+
+        // 3. 代码块 (`code`) 与 行内代码
+        formatted = formatted.replaceAll("`([^`]+)`", "<font face='monospace' color='#0F172A'><small><code>$1</code></small></font>");
+
+        // 4. 加粗 (**text**) 与 斜体 (*text*)
+        formatted = formatted.replaceAll("\\*\\*(.*?)\\*\\*", "<b>$1</b>");
+        formatted = formatted.replaceAll("\\*(.*?)\\*", "<i>$1</i>");
+
+        // 5. 删除线 (~~text~~)
+        formatted = formatted.replaceAll("~~(.*?)~~", "<strike>$1</strike>");
+
+        // 6. 无序列表与有序列表项优化
+        formatted = formatted.replaceAll("(?m)^[-*]\\s+", "• &nbsp;");
+
+        // 7. 分割线 (---)
+        formatted = formatted.replaceAll("(?m)^---$", "<hr>");
+
+        // 8. 换行符转 HTML
+        formatted = formatted.replace("\n", "<br>");
+
+        tv.setText(Html.fromHtml(formatted, Html.FROM_HTML_MODE_COMPACT));
+    }
+
     private void bindRoleBadge(TextView tvBadge, String role) {
-        if ("teacher".equalsIgnoreCase(role)) {
+        if (role != null && role.startsWith("model:")) {
+            String modelName = role.substring("model:".length());
+            tvBadge.setVisibility(View.VISIBLE);
+            tvBadge.setText(modelName);
+            GradientDrawable badgeBg = new GradientDrawable();
+            badgeBg.setCornerRadius(8f);
+            badgeBg.setColor(Color.parseColor("#EEF2FF"));
+            tvBadge.setBackground(badgeBg);
+            tvBadge.setTextColor(Color.parseColor("#4F46E5"));
+        } else if ("teacher".equalsIgnoreCase(role)) {
             tvBadge.setVisibility(View.VISIBLE);
             tvBadge.setText("教师");
             tvBadge.setBackgroundColor(Color.parseColor("#FEF3C7"));
@@ -205,6 +256,20 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private void renderAvatar(ImageView iv, String sender, String avatarBase64) {
+        if ("ICON_QWEN".equals(avatarBase64)) {
+            iv.setBackgroundColor(Color.TRANSPARENT);
+            iv.setImageResource(R.drawable.ic_model_qwen);
+            return;
+        } else if ("ICON_DEEPSEEK".equals(avatarBase64)) {
+            iv.setBackgroundColor(Color.TRANSPARENT);
+            iv.setImageResource(R.drawable.ic_model_deepseek);
+            return;
+        } else if ("ICON_GLM".equals(avatarBase64)) {
+            iv.setBackgroundColor(Color.TRANSPARENT);
+            iv.setImageResource(R.drawable.ic_model_glm);
+            return;
+        }
+
         String effectiveAvatar = avatarBase64;
         if (TextUtils.isEmpty(effectiveAvatar) && userAvatarMap != null) {
             effectiveAvatar = userAvatarMap.get(sender);

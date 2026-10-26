@@ -5,9 +5,9 @@ import java.util.Date;
 import java.util.Locale;
 
 public class ChatMessage {
-    private String type;     // chat / image / system
+    private String type;     // chat / image / system / card_...
     private String sender;   // 发送者
-    private String role;     // teacher / student / monitor
+    private String role;     // teacher / student / monitor / model:...
     private String content;  // 文本内容或图片Base64
     private String avatar;   // 头像Base64
     private boolean isMe;    // 是否是自己
@@ -42,6 +42,11 @@ public class ChatMessage {
 
     public String getContent() {
         return content;
+    }
+
+    // 核心新增：供 AI 流式打字机特效动态更新气泡文本
+    public void setContent(String content) {
+        this.content = content;
     }
 
     public String getAvatar() {
