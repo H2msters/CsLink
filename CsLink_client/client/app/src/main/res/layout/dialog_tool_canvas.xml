@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#FFFFFF"
+    android:background="@drawable/bg_card_surface"
     android:orientation="vertical"
     android:padding="16dp">
 
-    <!-- 1. 顶部标题与状态 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,7 +18,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="小组协同白板草稿"
+            android:text="协同白板"
             android:textColor="#15803D"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -27,12 +27,11 @@
             android:id="@+id/tvCanvasSyncStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="组内实时同步中"
+            android:text="实时同步"
             android:textColor="#64748B"
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- 2. 画笔颜色与工具选择栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -46,11 +45,17 @@
             android:layout_height="34dp"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:backgroundTint="#1E293B"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:padding="0dp"
+            android:gravity="center"
+            android:backgroundTint="#1E293B"
             android:text="黑笔"
             android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnPenRed"
@@ -58,11 +63,17 @@
             android:layout_height="34dp"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:backgroundTint="#EF4444"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:padding="0dp"
+            android:gravity="center"
+            android:backgroundTint="#EF4444"
             android:text="红笔"
             android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnPenBlue"
@@ -70,11 +81,17 @@
             android:layout_height="34dp"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:backgroundTint="#2563EB"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:padding="0dp"
+            android:gravity="center"
+            android:backgroundTint="#2563EB"
             android:text="蓝笔"
             android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnPenGreen"
@@ -82,25 +99,36 @@
             android:layout_height="34dp"
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
-            android:backgroundTint="#10B981"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:padding="0dp"
+            android:gravity="center"
+            android:backgroundTint="#10B981"
             android:text="绿笔"
             android:textColor="#FFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnPenEraser"
             android:layout_width="0dp"
             android:layout_height="34dp"
             android:layout_weight="1"
-            android:backgroundTint="#E2E8F0"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:padding="0dp"
+            android:gravity="center"
+            android:backgroundTint="#E2E8F0"
             android:text="橡皮"
             android:textColor="#334155"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            tools:ignore="TouchTargetSizeCheck" />
     </LinearLayout>
 
-    <!-- 3. 核心协同画布区域（带浅色外框） -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="320dp"
@@ -114,7 +142,6 @@
             android:layout_height="match_parent" />
     </FrameLayout>
 
-    <!-- 4. 底部操作栏：清空、发送到讨论流、关闭 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -125,11 +152,21 @@
         <Button
             android:id="@+id/btnClearCanvas"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="12dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#FEE2E2"
-            android:text="清空画板"
+            android:text="清空"
             android:textColor="#DC2626"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <View
             android:layout_width="0dp"
@@ -139,21 +176,41 @@
         <Button
             android:id="@+id/btnShareCanvasToChat"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
             android:layout_marginEnd="8dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#1E88E5"
-            android:text="发送到讨论"
+            android:text="发送至讨论"
             android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnCloseCanvas"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#E2E8F0"
             android:text="关闭"
             android:textColor="#334155"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="TouchTargetSizeCheck" />
     </LinearLayout>
 
 </LinearLayout>

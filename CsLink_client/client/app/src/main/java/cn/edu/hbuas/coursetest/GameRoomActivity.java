@@ -453,7 +453,7 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
 
         if (effectiveMuted) {
             etRoomMessage.setText("");
-            etRoomMessage.setHint(isMyUserMuted ? "您已被教师单独禁言" : "全员禁言中，暂停发言");
+            etRoomMessage.setHint(isMyUserMuted ? "已禁言" : "全员禁言中");
             etRoomMessage.setHintTextColor(Color.parseColor("#DC2626"));
             etRoomMessage.setEnabled(false);
 
@@ -468,10 +468,10 @@ public class GameRoomActivity extends AppCompatActivity implements GameSocketBri
             btnToggleRoomToolPanel.setText("+");
         } else {
             if (isGlobalMuted && isTeacher) {
-                etRoomMessage.setHint("全员禁言中 (教师不受限)");
+                etRoomMessage.setHint("全员禁言中");
                 etRoomMessage.setHintTextColor(Color.parseColor("#D97706"));
             } else {
-                etRoomMessage.setHint("请输入文本");
+                etRoomMessage.setHint("输入讨论内容...");
                 etRoomMessage.setHintTextColor(Color.parseColor("#9CA3AF"));
             }
             etRoomMessage.setEnabled(true);

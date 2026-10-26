@@ -26,7 +26,10 @@
         android:elevation="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:paddingStart="10dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="6dp">
 
         <EditText
             android:id="@+id/etMessage"
@@ -34,26 +37,31 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@android:color/transparent"
-            android:hint="请输入文本..."
+            android:hint="输入讨论内容..."
             android:maxLines="3"
-            android:paddingStart="12dp"
+            android:paddingStart="8dp"
             android:paddingTop="8dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="8dp"
             android:paddingBottom="8dp"
-            android:textColor="#1F2937"
+            android:textColor="#0F172A"
             android:textSize="14sp"
             tools:ignore="Autofill,HardcodedText,TextFields" />
 
         <Button
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
+            android:layout_height="34dp"
+            android:minWidth="52dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:layout_marginStart="6dp"
             android:backgroundTint="#1E88E5"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
             android:text="发送"
             android:textColor="#FFFFFF"
             android:textSize="13sp"
@@ -62,25 +70,30 @@
         <Button
             android:id="@+id/btnToggleMorePanel"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
+            android:layout_height="34dp"
+            android:minWidth="42dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="10dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:layout_marginStart="6dp"
-            android:backgroundTint="#9CA3AF"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
+            android:backgroundTint="#64748B"
             android:text="+"
             android:textColor="#FFFFFF"
-            android:textSize="13sp"
+            android:textSize="15sp"
             tools:ignore="HardcodedText,TouchTargetSizeCheck" />
     </LinearLayout>
 
-    <!-- 更多功能抽屉面板：支持横向滑动以容纳 7 个功能图标 -->
+    <!-- 扩展工具栏：矢量图标 + 精简2字标签 -->
     <LinearLayout
         android:id="@+id/layoutMorePanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F9FAFB"
+        android:background="#FFFFFF"
         android:orientation="vertical"
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
@@ -99,43 +112,39 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp">
 
-                <!-- 1. 相机拍摄发图 -->
+                <!-- 1. 拍摄 -->
                 <LinearLayout
                     android:id="@+id/itemPanelCamera"
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <Button
                         android:id="@+id/btnPanelCamera"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
                         android:backgroundTint="#E0F2FE"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="相机"
-                        android:textColor="#0284C7"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:drawableTop="@drawable/ic_vec_camera"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="拍摄发图"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="拍摄"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 2. 相册发图 -->
+                <!-- 2. 相册 -->
                 <LinearLayout
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:gravity="center"
@@ -143,34 +152,30 @@
 
                     <Button
                         android:id="@+id/btnPickImage"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
-                        android:backgroundTint="#E0F2FE"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="图片"
-                        android:textColor="#0284C7"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
+                        android:backgroundTint="#F3E8FF"
+                        android:drawableTop="@drawable/ic_vec_gallery"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="相册发图"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="相册"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 3. 发起抢答 (教师特权) -->
+                <!-- 3. 抢答 -->
                 <LinearLayout
                     android:id="@+id/itemPanelStartBuzz"
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:gravity="center"
@@ -178,34 +183,30 @@
 
                     <Button
                         android:id="@+id/btnPanelBuzzAction"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
                         android:backgroundTint="#FEE2E2"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="抢答"
-                        android:textColor="#DC2626"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:drawableTop="@drawable/ic_vec_buzz"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="发起抢答"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="抢答"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 4. 随机点名 (教师特权) -->
+                <!-- 4. 点名 -->
                 <LinearLayout
                     android:id="@+id/itemPanelRandomPick"
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:gravity="center"
@@ -213,34 +214,30 @@
 
                     <Button
                         android:id="@+id/btnPanelRandomPick"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
                         android:backgroundTint="#F3E8FF"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="点名"
-                        android:textColor="#9333EA"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:drawableTop="@drawable/ic_vec_pick"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="随机点名"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="点名"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 5. 随堂投票 (教师特权) -->
+                <!-- 5. 测验 -->
                 <LinearLayout
                     android:id="@+id/itemPanelStartVote"
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:gravity="center"
@@ -248,34 +245,30 @@
 
                     <Button
                         android:id="@+id/btnPanelStartVote"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
                         android:backgroundTint="#DCFCE7"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="投票"
-                        android:textColor="#16A34A"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:drawableTop="@drawable/ic_vec_vote"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="班级投票"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="投票"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 6. 新增：全员禁言开关 (教师特权) -->
+                <!-- 6. 禁言 -->
                 <LinearLayout
                     android:id="@+id/itemPanelGlobalMute"
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:gravity="center"
@@ -283,35 +276,31 @@
 
                     <Button
                         android:id="@+id/btnPanelGlobalMute"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
                         android:backgroundTint="#FEF3C7"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="禁言"
-                        android:textColor="#D97706"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:drawableTop="@drawable/ic_vec_mute"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:id="@+id/tvPanelGlobalMuteLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="全员禁言"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="禁言"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 7. 新增：一键锁定学生屏幕 (教师特权) -->
+                <!-- 7. 锁屏 -->
                 <LinearLayout
                     android:id="@+id/itemPanelLockScreen"
-                    android:layout_width="70dp"
+                    android:layout_width="68dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:gravity="center"
@@ -319,29 +308,25 @@
 
                     <Button
                         android:id="@+id/btnPanelLockScreen"
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:background="@drawable/bg_icon_box"
                         android:backgroundTint="#E2E8F0"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="锁屏"
-                        android:textColor="#334155"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText,TouchTargetSizeCheck" />
+                        android:drawableTop="@drawable/ic_vec_lock"
+                        android:paddingTop="12dp"
+                        android:text=""
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                     <TextView
                         android:id="@+id/tvPanelLockScreenLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="锁定屏幕"
-                        android:textColor="#4B5563"
-                        android:textSize="11sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="锁屏"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
             </LinearLayout>

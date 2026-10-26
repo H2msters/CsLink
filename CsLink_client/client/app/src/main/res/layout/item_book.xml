@@ -10,23 +10,19 @@
     android:padding="14dp"
     android:layout_marginBottom="1dp">
 
-    <!-- 文件类型图标徽章 -->
-    <LinearLayout
-        android:layout_width="38dp"
-        android:layout_height="46dp"
-        android:background="#FEE2E2"
-        android:gravity="center"
-        android:orientation="vertical">
+    <!-- 矢量文献图标徽章 -->
+    <FrameLayout
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_icon_box"
+        android:backgroundTint="#EFF6FF">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PDF"
-            android:textColor="#DC2626"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            tools:ignore="HardcodedText" />
-    </LinearLayout>
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_vec_book" />
+    </FrameLayout>
 
     <!-- 书籍名称与元信息 -->
     <LinearLayout
@@ -42,8 +38,8 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="书籍名称.pdf"
-            android:textColor="#1F2937"
+            android:text="书籍名称"
+            android:textColor="#0F172A"
             android:textSize="15sp"
             android:textStyle="bold"
             tools:ignore="HardcodedText" />
@@ -52,43 +48,53 @@
             android:id="@+id/tvBookMeta"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:text="上传者: 教师 · 2.5 MB"
-            android:textColor="#4B5563"
+            android:layout_marginTop="2dp"
+            android:text="教师 · 2.5 MB"
+            android:textColor="#64748B"
             android:textSize="11sp"
             tools:ignore="HardcodedText" />
     </LinearLayout>
 
-    <!-- 教师删除按钮：补充最小触控热区与属性忽略 -->
+    <!-- 教师删除按钮（零上下内边距，文字严格垂直居中） -->
     <Button
         android:id="@+id/btnDeleteBook"
         android:layout_width="wrap_content"
-        android:layout_height="36dp"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
+        android:layout_height="34dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:paddingStart="12dp"
+        android:paddingTop="0dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="0dp"
+        android:gravity="center"
         android:layout_marginEnd="6dp"
         android:backgroundTint="#FEE2E2"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp"
         android:text="删除"
         android:textColor="#DC2626"
-        android:textSize="11sp"
+        android:textSize="12sp"
         android:visibility="gone"
         tools:ignore="HardcodedText,TouchTargetSizeCheck" />
 
-    <!-- 核心阅读按钮：消除 TouchTargetSizeCheck 红色错误 -->
+    <!-- 查阅按钮（零上下内边距，文字严格垂直居中） -->
     <Button
         android:id="@+id/btnReadBook"
         android:layout_width="wrap_content"
-        android:layout_height="36dp"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
+        android:layout_height="34dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:paddingStart="14dp"
+        android:paddingTop="0dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="0dp"
+        android:gravity="center"
         android:backgroundTint="#1E88E5"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:text="阅读"
+        android:text="查阅"
         android:textColor="#FFFFFF"
-        android:textSize="11sp"
+        android:textSize="12sp"
         tools:ignore="HardcodedText,TouchTargetSizeCheck" />
 
 </LinearLayout>

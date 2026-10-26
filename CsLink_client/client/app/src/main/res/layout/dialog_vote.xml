@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="随堂单选投票"
+        android:text="班级投票"
         android:textColor="#15803D"
         android:textSize="19sp"
         android:textStyle="bold" />
@@ -214,7 +214,14 @@
             android:text="结束投票并公布"
             android:textColor="#FFFFFF"
             android:textSize="12sp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:gravity="center" />
 
         <Button
             android:id="@+id/btnCloseVoteDialog"
@@ -223,7 +230,14 @@
             android:backgroundTint="#E5E7EB"
             android:text="关闭窗口"
             android:textColor="#374151"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:gravity="center" />
     </LinearLayout>
 
 </LinearLayout>

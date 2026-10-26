@@ -9,11 +9,11 @@
     android:background="#F4F6F9"
     android:fitsSystemWindows="true">
 
-    <!-- 1. 顶部协作室标题栏 -->
+    <!-- 1. 顶部小组房间标题栏 -->
     <RelativeLayout
         android:id="@+id/layoutRoomHeader"
         android:layout_width="0dp"
-        android:layout_height="52dp"
+        android:layout_height="50dp"
         android:background="#1E88E5"
         android:paddingStart="14dp"
         android:paddingEnd="12dp"
@@ -31,11 +31,12 @@
             android:layout_marginEnd="8dp"
             android:ellipsize="end"
             android:singleLine="true"
-            android:text="协作研讨组"
+            android:text="小组讨论"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />
 
+        <!-- 右上角按钮：结构统一样式，颜色按功能区分 -->
         <LinearLayout
             android:id="@+id/layoutRightActions"
             android:layout_width="wrap_content"
@@ -45,63 +46,72 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <!-- 解散：红色警示色 -->
             <Button
                 android:id="@+id/btnDisbandRoom"
                 android:layout_width="wrap_content"
-                android:layout_height="30dp"
+                android:layout_height="32dp"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:backgroundTint="#EF4444"
-                android:gravity="center"
-                android:paddingStart="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="10dp"
                 android:paddingTop="0dp"
-                android:paddingEnd="8dp"
+                android:paddingEnd="10dp"
                 android:paddingBottom="0dp"
+                android:gravity="center"
+                android:backgroundTint="#EF4444"
                 android:text="解散"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"
                 android:visibility="gone"
                 tools:ignore="TouchTargetSizeCheck" />
 
+            <!-- 组员：半透明次要色 -->
             <Button
                 android:id="@+id/btnRoomMembers"
                 android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginStart="5dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:backgroundTint="#1565C0"
-                android:gravity="center"
-                android:paddingStart="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="10dp"
                 android:paddingTop="0dp"
-                android:paddingEnd="8dp"
+                android:paddingEnd="10dp"
                 android:paddingBottom="0dp"
-                android:text="组员 (0人)"
+                android:gravity="center"
+                android:backgroundTint="#1565C0"
+                android:text="成员"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"
                 tools:ignore="TouchTargetSizeCheck" />
 
+            <!-- 退出：深灰/中性色 -->
             <Button
                 android:id="@+id/btnBackToLobby"
                 android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginStart="5dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:backgroundTint="#374151"
-                android:gravity="center"
-                android:paddingStart="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="10dp"
                 android:paddingTop="0dp"
-                android:paddingEnd="8dp"
+                android:paddingEnd="10dp"
                 android:paddingBottom="0dp"
-                android:text="返回"
+                android:gravity="center"
+                android:backgroundTint="#334155"
+                android:text="退出"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"
                 tools:ignore="TouchTargetSizeCheck" />
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- 2. 中间：讨论消息流 -->
+    <!-- 2. 讨论消息流 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvRoomChat"
         android:layout_width="0dp"
@@ -114,7 +124,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 3. 底部输入控制栏 -->
+    <!-- 3. 底部输入控制栏（已换成和大厅完全一致的样式） -->
     <LinearLayout
         android:id="@+id/layoutRoomInput"
         android:layout_width="0dp"
@@ -123,9 +133,9 @@
         android:elevation="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="8dp"
+        android:paddingStart="10dp"
         android:paddingTop="6dp"
-        android:paddingEnd="8dp"
+        android:paddingEnd="10dp"
         android:paddingBottom="6dp"
         app:layout_constraintBottom_toTopOf="@id/layoutRoomToolPanel"
         app:layout_constraintStart_toStartOf="parent"
@@ -137,25 +147,27 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@null"
-            android:hint="请输入文本"
+            android:hint="输入讨论内容..."
             android:maxLines="3"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:textSize="14sp" />
 
         <Button
             android:id="@+id/btnSendRoomMsg"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
             android:layout_marginStart="6dp"
             android:minWidth="48dp"
             android:minHeight="0dp"
-            android:backgroundTint="#1E88E5"
-            android:gravity="center"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:paddingStart="14dp"
             android:paddingTop="0dp"
             android:paddingEnd="14dp"
             android:paddingBottom="0dp"
+            android:gravity="center"
+            android:backgroundTint="#1E88E5"
             android:text="发送"
             android:textColor="#FFFFFF"
             android:textSize="13sp"
@@ -164,28 +176,30 @@
         <Button
             android:id="@+id/btnToggleRoomToolPanel"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
             android:layout_marginStart="6dp"
-            android:minWidth="48dp"
+            android:minWidth="42dp"
             android:minHeight="0dp"
-            android:backgroundTint="#9CA3AF"
-            android:gravity="center"
-            android:paddingStart="14dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="10dp"
             android:paddingTop="0dp"
-            android:paddingEnd="14dp"
+            android:paddingEnd="10dp"
             android:paddingBottom="0dp"
+            android:gravity="center"
+            android:backgroundTint="#64748B"
             android:text="+"
             android:textColor="#FFFFFF"
-            android:textSize="13sp"
+            android:textSize="14sp"
             tools:ignore="HardcodedText,TouchTargetSizeCheck" />
     </LinearLayout>
 
-    <!-- 4. 底部扩展插件抽屉（横向滑动容纳拍摄、相册、猜拳、白板） -->
+    <!-- 4. 底部扩展工具面板 -->
     <HorizontalScrollView
         android:id="@+id/layoutRoomToolPanel"
         android:layout_width="0dp"
-        android:layout_height="96dp"
-        android:background="#F9FAFB"
+        android:layout_height="92dp"
+        android:background="#FFFFFF"
         android:scrollbars="none"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -200,10 +214,10 @@
             android:paddingStart="16dp"
             android:paddingEnd="16dp">
 
-            <!-- 插件 1：随堂拍照 -->
+            <!-- 1. 拍摄 -->
             <LinearLayout
                 android:id="@+id/itemToolCamera"
-                android:layout_width="72dp"
+                android:layout_width="68dp"
                 android:layout_height="match_parent"
                 android:clickable="true"
                 android:focusable="true"
@@ -212,34 +226,34 @@
 
                 <Button
                     android:id="@+id/btnToolCameraAction"
-                    android:layout_width="52dp"
-                    android:layout_height="42dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
-                    android:backgroundTint="#EFF6FF"
+                    android:background="@drawable/bg_icon_box"
+                    android:backgroundTint="#E0F2FE"
                     android:clickable="false"
                     android:focusable="false"
-                    android:text="拍摄"
-                    android:textColor="#1E88E5"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    tools:ignore="TouchTargetSizeCheck" />
+                    android:drawableTop="@drawable/ic_vec_camera"
+                    android:paddingTop="12dp"
+                    android:text=""
+                    tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="拍摄发图"
-                    android:textColor="#4B5563"
+                    android:layout_marginTop="5dp"
+                    android:text="拍摄"
+                    android:textColor="#334155"
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- 插件 2：相册选择 -->
+            <!-- 2. 相册 -->
             <LinearLayout
                 android:id="@+id/itemToolGallery"
-                android:layout_width="72dp"
+                android:layout_width="68dp"
                 android:layout_height="match_parent"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="12dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
@@ -247,34 +261,34 @@
 
                 <Button
                     android:id="@+id/btnToolGalleryAction"
-                    android:layout_width="52dp"
-                    android:layout_height="42dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
+                    android:background="@drawable/bg_icon_box"
                     android:backgroundTint="#F3E8FF"
                     android:clickable="false"
                     android:focusable="false"
-                    android:text="相册"
-                    android:textColor="#7C3AED"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    tools:ignore="TouchTargetSizeCheck" />
+                    android:drawableTop="@drawable/ic_vec_gallery"
+                    android:paddingTop="12dp"
+                    android:text=""
+                    tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="相册选择"
-                    android:textColor="#4B5563"
+                    android:layout_marginTop="5dp"
+                    android:text="相册"
+                    android:textColor="#334155"
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- 插件 3：决策猜拳 -->
+            <!-- 3. 猜拳 -->
             <LinearLayout
                 android:id="@+id/itemToolRps"
-                android:layout_width="72dp"
+                android:layout_width="68dp"
                 android:layout_height="match_parent"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="12dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
@@ -282,34 +296,34 @@
 
                 <Button
                     android:id="@+id/btnLaunchRpsTool"
-                    android:layout_width="52dp"
-                    android:layout_height="42dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
+                    android:background="@drawable/bg_icon_box"
                     android:backgroundTint="#E0F2FE"
                     android:clickable="false"
                     android:focusable="false"
-                    android:text="猜拳"
-                    android:textColor="#0369A1"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    tools:ignore="TouchTargetSizeCheck" />
+                    android:drawableTop="@drawable/ic_vec_rps"
+                    android:paddingTop="12dp"
+                    android:text=""
+                    tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="决策猜拳"
-                    android:textColor="#4B5563"
+                    android:layout_marginTop="5dp"
+                    android:text="猜拳"
+                    android:textColor="#334155"
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- 插件 4：协同草稿 -->
+            <!-- 4. 白板 -->
             <LinearLayout
                 android:id="@+id/itemToolCanvas"
-                android:layout_width="72dp"
+                android:layout_width="68dp"
                 android:layout_height="match_parent"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="12dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
@@ -317,25 +331,25 @@
 
                 <Button
                     android:id="@+id/btnToolCanvasAction"
-                    android:layout_width="52dp"
-                    android:layout_height="42dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
+                    android:background="@drawable/bg_icon_box"
                     android:backgroundTint="#DCFCE7"
                     android:clickable="false"
                     android:focusable="false"
-                    android:text="白板"
-                    android:textColor="#15803D"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    tools:ignore="TouchTargetSizeCheck" />
+                    android:drawableTop="@drawable/ic_vec_canvas"
+                    android:paddingTop="12dp"
+                    android:text=""
+                    tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="协同草稿"
-                    android:textColor="#4B5563"
+                    android:layout_marginTop="5dp"
+                    android:text="白板"
+                    android:textColor="#334155"
                     android:textSize="11sp" />
             </LinearLayout>
 

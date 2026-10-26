@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/layoutUserListContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F4F6F9"
     android:orientation="vertical"
-    android:padding="12dp"
+    android:padding="14dp"
     android:visibility="gone">
 
-    <!-- 1. 小组大厅区块 -->
+    <!-- 1. 协作小组区块 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -21,77 +22,77 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="小组大厅"
-            android:textColor="#1F2937"
-            android:textSize="17sp"
+            android:text="协作小组"
+            android:textColor="#0F172A"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <Button
             android:id="@+id/btnCreateGameRoom"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#1E88E5"
-            android:text="创建小组"
+            android:text="新建小组"
             android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="HardcodedText,TouchTargetSizeCheck" />
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="6dp"
-        android:text="小组列表"
-        android:textColor="#6B7280"
-        android:textSize="13sp" />
-
-    <!-- 小组列表（限制占用高度） -->
+    <!-- 小组列表（圆角白底容器） -->
     <ListView
         android:id="@+id/lvGameRooms"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginTop="10dp"
         android:layout_weight="1"
-        android:background="#FFFFFF"
-        android:divider="#E0E4E8"
-        android:dividerHeight="1dp" />
+        android:background="@drawable/bg_card_surface"
+        android:divider="#F1F5F9"
+        android:dividerHeight="1dp"
+        android:padding="4dp" />
 
-    <!-- 2. 学习资源与入口 -->
+    <!-- 2. 教学资源入口 -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:layout_marginBottom="6dp"
-        android:text="学习资源"
-        android:textColor="#6B7280"
-        android:textSize="13sp" />
+        android:layout_marginBottom="8dp"
+        android:text="教学资源"
+        android:textColor="#64748B"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
-    <!-- AI平台入口卡片（位于班级图书角上方，无描述） -->
+    <!-- AI 平台入口卡片 -->
     <LinearLayout
         android:id="@+id/cardAiPlatform"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
-        android:background="#FFFFFF"
-        android:elevation="2dp"
+        android:background="@drawable/bg_card_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp">
+        android:padding="14dp">
 
-        <LinearLayout
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="#EFF6FF"
-            android:gravity="center"
-            android:orientation="vertical">
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_icon_box"
+            android:backgroundTint="#EEF2FF">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="AI"
-                android:textColor="#1E88E5"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_vec_ai" />
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -103,16 +104,16 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="AI平台"
-                android:textColor="#1F2937"
-                android:textSize="16sp"
+                android:text="AI 平台"
+                android:textColor="#0F172A"
+                android:textSize="15sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="进入 →"
+            android:text="进入"
             android:textColor="#1E88E5"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -123,27 +124,23 @@
         android:id="@+id/cardBookCorner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:elevation="2dp"
+        android:background="@drawable/bg_card_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp">
+        android:padding="14dp">
 
-        <LinearLayout
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="#EFF6FF"
-            android:gravity="center"
-            android:orientation="vertical">
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_icon_box"
+            android:backgroundTint="#EFF6FF">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="书"
-                android:textColor="#1E88E5"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_vec_book" />
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -156,24 +153,24 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="班级图书角"
-                android:textColor="#1F2937"
-                android:textSize="16sp"
+                android:textColor="#0F172A"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvBookSummary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="点击进入图书阅读与下载"
-                android:textColor="#6B7280"
+                android:layout_marginTop="2dp"
+                android:text="电子教材与参考资料"
+                android:textColor="#64748B"
                 android:textSize="12sp" />
         </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="进入 →"
+            android:text="进入"
             android:textColor="#1E88E5"
             android:textSize="13sp"
             android:textStyle="bold" />

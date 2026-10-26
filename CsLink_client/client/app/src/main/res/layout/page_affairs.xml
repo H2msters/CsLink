@@ -10,11 +10,11 @@
     android:padding="12dp"
     android:visibility="gone">
 
-    <!-- 顶部统计与发布栏 -->
+    <!-- 顶部标题与发布栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@drawable/bg_card_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="12dp">
@@ -24,8 +24,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="班级事务与作业"
-            android:textColor="#1F2937"
+            android:text="班级事务"
+            android:textColor="#0F172A"
             android:textSize="15sp"
             android:textStyle="bold"
             tools:ignore="HardcodedText" />
@@ -33,18 +33,25 @@
         <Button
             android:id="@+id/btnPublishAffair"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
+            android:layout_height="34dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#1E88E5"
-            android:text="发布事务"
+            android:text="新建发布"
             android:textColor="#FFFFFF"
             android:textSize="12sp"
             android:visibility="gone"
             tools:ignore="HardcodedText,TouchTargetSizeCheck" />
     </LinearLayout>
 
-    <!-- 分类切换栏（班级通知 & 班级作业 均带独立未读红点） -->
+    <!-- 分类切换栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -52,7 +59,6 @@
         android:layout_marginBottom="10dp"
         android:orientation="horizontal">
 
-        <!-- 班级通知 + 红点 -->
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -62,8 +68,13 @@
             <Button
                 android:id="@+id/btnFilterNotice"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:minHeight="48dp"
+                android:layout_height="38dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:gravity="center"
                 android:backgroundTint="#1E88E5"
                 android:text="班级通知"
                 android:textColor="#FFFFFF"
@@ -72,8 +83,8 @@
 
             <View
                 android:id="@+id/badgeNoticeDot"
-                android:layout_width="9dp"
-                android:layout_height="9dp"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:layout_gravity="top|end"
                 android:layout_marginTop="6dp"
                 android:layout_marginEnd="10dp"
@@ -82,7 +93,6 @@
                 android:visibility="gone" />
         </FrameLayout>
 
-        <!-- 班级作业 + 红点 -->
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -92,18 +102,23 @@
             <Button
                 android:id="@+id/btnFilterHomework"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:minHeight="48dp"
-                android:backgroundTint="#E5E7EB"
+                android:layout_height="38dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:gravity="center"
+                android:backgroundTint="#E2E8F0"
                 android:text="班级作业"
-                android:textColor="#4B5563"
+                android:textColor="#475569"
                 android:textSize="13sp"
                 tools:ignore="HardcodedText,TouchTargetSizeCheck" />
 
             <View
                 android:id="@+id/badgeHomeworkDot"
-                android:layout_width="9dp"
-                android:layout_height="9dp"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:layout_gravity="top|end"
                 android:layout_marginTop="6dp"
                 android:layout_marginEnd="10dp"
@@ -129,9 +144,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="暂无班级通知"
-            android:textColor="#9CA3AF"
-            android:textSize="14sp"
+            android:text="暂无事项"
+            android:textColor="#94A3B8"
+            android:textSize="13sp"
             android:visibility="gone"
             tools:ignore="HardcodedText" />
     </FrameLayout>

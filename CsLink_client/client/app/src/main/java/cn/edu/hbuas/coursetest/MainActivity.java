@@ -158,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
     private InteractiveDialogManager dialogManager;
     private JSONObject latestVoteData = null;
     private boolean latestBuzzActive = false;
-    private String latestBuzzTitle = "随堂即时抢答";
+    private String latestBuzzTitle = "班级抢答";
     private String latestBuzzWinner = "";
     private int latestBuzzCostMs = 0;
 
@@ -449,7 +449,10 @@ public class MainActivity extends AppCompatActivity {
         btnTabAffairs = findViewById(R.id.btnTabAffairs);
         btnTabProfile = findViewById(R.id.btnTabProfile);
 
-        if (btnTabUsers != null) btnTabUsers.setText("功能区");
+        if (btnTabUsers != null) btnTabUsers.setText("功能");
+        if (btnTabChat != null) btnTabChat.setText("讨论");
+        if (btnTabAffairs != null) btnTabAffairs.setText("事务");
+        if (btnTabProfile != null) btnTabProfile.setText("个人");
         if (btnEditProfileName != null) btnEditProfileName.setText("修改姓名");
         if (btnProfileReconnect != null) btnProfileReconnect.setText("重新连接");
         if (btnSettings != null) btnSettings.setText("系统设置");
@@ -838,19 +841,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void showInitiateVoteDialog() {
         final EditText input = new EditText(this);
-        input.setHint("输入投票题目");
-        input.setText("随堂单选测验第 1 题");
+        input.setHint("输入投票主题（选填，默认：班级投票）");
 
         new AlertDialog.Builder(this)
-                .setTitle("发起随堂投票")
+                .setTitle("发起班级投票")
                 .setView(input)
-                .setPositiveButton("全员开始投票", (dialog, which) -> {
+                .setPositiveButton("发起", (dialog, which) -> {
                     String title = input.getText().toString().trim();
                     if (webSocket != null && isConnected) {
                         try {
                             JSONObject json = new JSONObject();
                             json.put("type", "start_vote");
-                            json.put("title", TextUtils.isEmpty(title) ? "随堂单选测验" : title);
+                            json.put("title", TextUtils.isEmpty(title) ? "班级投票" : title);
                             webSocket.send(json.toString());
                         } catch (JSONException ignored) {}
                     }
@@ -858,22 +860,20 @@ public class MainActivity extends AppCompatActivity {
                 .setNegativeButton("取消", null)
                 .show();
     }
-
     private void showInitiateBuzzDialog() {
         final EditText input = new EditText(this);
-        input.setHint("输入本次抢答题目或环节说明");
-        input.setText("随堂第 1 题快速抢答");
+        input.setHint("输入抢答主题（选填，默认：班级抢答）");
 
         new AlertDialog.Builder(this)
-                .setTitle("发起到全班设备")
+                .setTitle("发起班级抢答")
                 .setView(input)
-                .setPositiveButton("全员开始抢答", (dialog, which) -> {
+                .setPositiveButton("发起", (dialog, which) -> {
                     String title = input.getText().toString().trim();
                     if (webSocket != null && isConnected) {
                         try {
                             JSONObject json = new JSONObject();
                             json.put("type", "start_buzz");
-                            json.put("title", TextUtils.isEmpty(title) ? "随堂抢答环节" : title);
+                            json.put("title", TextUtils.isEmpty(title) ? "班级抢答" : title);
                             webSocket.send(json.toString());
                         } catch (JSONException ignored) {}
                     }
@@ -1092,12 +1092,11 @@ public class MainActivity extends AppCompatActivity {
         dialogLayout.setPadding(60, 20, 60, 20);
 
         final EditText input = new EditText(this);
-        input.setHint("输入小组名称");
-        input.setText(myNickname + "的协作组");
+        input.setHint("输入小组名称"); // 已移除冗长的默认提示括号
         dialogLayout.addView(input);
 
         TextView tvCapLabel = new TextView(this);
-        tvCapLabel.setText("选择小组人数上限：");
+        tvCapLabel.setText("人数上限：");
         tvCapLabel.setTextColor(Color.parseColor("#4B5563"));
         tvCapLabel.setTextSize(13);
         tvCapLabel.setPadding(0, 24, 0, 8);
@@ -1116,14 +1115,17 @@ public class MainActivity extends AppCompatActivity {
         dialogLayout.addView(rgCapacity);
 
         new AlertDialog.Builder(this)
-                .setTitle("创建协作小组 / 休息室")
+                .setTitle("新建小组")
                 .setView(dialogLayout)
-                .setPositiveButton("创建并进入", (dialog, which) -> {
+                .setPositiveButton("创建", (dialog, which) -> {
                     String title = input.getText().toString().trim();
+                    if (TextUtils.isEmpty(title)) {
+                        title = (TextUtils.isEmpty(myNickname) ? "班级" : myNickname) + "的小组";
+                    }
                     int selectedCap = rgCapacity.getCheckedRadioButtonId();
                     if (selectedCap <= 0) selectedCap = 4;
 
-                    if (!TextUtils.isEmpty(title) && webSocket != null && isConnected) {
+                    if (webSocket != null && isConnected) {
                         try {
                             JSONObject json = new JSONObject();
                             json.put("type", "create_room");
@@ -1231,20 +1233,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateProfileDisplay() {
-        String displayName = TextUtils.isEmpty(myNickname) ? "未设置姓名" : myNickname;
-        tvProfileNickname.setText("姓名：" + displayName);
-        String connectionInfo = isConnected ? "已连接" : "正在连接...";
+        String displayName = TextUtils.isEmpty(myNickname) ? "未命名" : myNickname;
+        tvProfileNickname.setText(displayName);
+        String connectionInfo = isConnected ? "在线" : "连接中";
         boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
         boolean isMonitor = "monitor".equalsIgnoreCase(myRole);
-        String roleText = isTeacher ? "教师端" : (isMonitor ? "班长端" : "学生端");
-        tvProfileStatus.setText("服务器节点：" + currentServerIp + ":8000\n当前身份：" + roleText + "\n网络状态：" + connectionInfo);
+        String roleText = isTeacher ? "教师" : (isMonitor ? "班长" : "学生");
+        tvProfileStatus.setText("节点：" + currentServerIp + ":8000\n权限：" + roleText + "\n状态：" + connectionInfo);
 
-        // 班长与教师均可发布班级事务
         if (btnPublishAffair != null) {
             btnPublishAffair.setVisibility((isTeacher || isMonitor) ? View.VISIBLE : View.GONE);
         }
-
-        // 教师专属课堂互动与管控按钮
         if (itemPanelStartBuzz != null) {
             itemPanelStartBuzz.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         }
@@ -1279,34 +1278,28 @@ public class MainActivity extends AppCompatActivity {
      */
     private void updateTeacherControlButtonsUI() {
         if (btnPanelGlobalMute != null && tvPanelGlobalMuteLabel != null) {
+            btnPanelGlobalMute.setText(""); // 保持纯矢量图标无文字遮挡
             if (isGlobalMuted) {
-                btnPanelGlobalMute.setText("解禁");
-                ViewCompat.setBackgroundTintList(btnPanelGlobalMute, ColorStateList.valueOf(Color.parseColor("#EF4444")));
-                btnPanelGlobalMute.setTextColor(Color.WHITE);
-                tvPanelGlobalMuteLabel.setText("已全员禁言");
+                ViewCompat.setBackgroundTintList(btnPanelGlobalMute, ColorStateList.valueOf(Color.parseColor("#FEE2E2")));
+                tvPanelGlobalMuteLabel.setText("解除禁言");
                 tvPanelGlobalMuteLabel.setTextColor(Color.parseColor("#DC2626"));
             } else {
-                btnPanelGlobalMute.setText("禁言");
                 ViewCompat.setBackgroundTintList(btnPanelGlobalMute, ColorStateList.valueOf(Color.parseColor("#FEF3C7")));
-                btnPanelGlobalMute.setTextColor(Color.parseColor("#D97706"));
-                tvPanelGlobalMuteLabel.setText("全员禁言");
-                tvPanelGlobalMuteLabel.setTextColor(Color.parseColor("#4B5563"));
+                tvPanelGlobalMuteLabel.setText("禁言");
+                tvPanelGlobalMuteLabel.setTextColor(Color.parseColor("#334155"));
             }
         }
 
         if (btnPanelLockScreen != null && tvPanelLockScreenLabel != null) {
+            btnPanelLockScreen.setText(""); // 保持纯矢量图标无文字遮挡
             if (isScreenLocked) {
-                btnPanelLockScreen.setText("解锁");
-                ViewCompat.setBackgroundTintList(btnPanelLockScreen, ColorStateList.valueOf(Color.parseColor("#1E293B")));
-                btnPanelLockScreen.setTextColor(Color.WHITE);
-                tvPanelLockScreenLabel.setText("已锁定屏幕");
-                tvPanelLockScreenLabel.setTextColor(Color.parseColor("#1E293B"));
+                ViewCompat.setBackgroundTintList(btnPanelLockScreen, ColorStateList.valueOf(Color.parseColor("#CBD5E1")));
+                tvPanelLockScreenLabel.setText("解除锁屏");
+                tvPanelLockScreenLabel.setTextColor(Color.parseColor("#0F172A"));
             } else {
-                btnPanelLockScreen.setText("锁屏");
                 ViewCompat.setBackgroundTintList(btnPanelLockScreen, ColorStateList.valueOf(Color.parseColor("#E2E8F0")));
-                btnPanelLockScreen.setTextColor(Color.parseColor("#334155"));
-                tvPanelLockScreenLabel.setText("锁定屏幕");
-                tvPanelLockScreenLabel.setTextColor(Color.parseColor("#4B5563"));
+                tvPanelLockScreenLabel.setText("锁屏");
+                tvPanelLockScreenLabel.setTextColor(Color.parseColor("#334155"));
             }
         }
     }
@@ -1322,11 +1315,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (effectiveMuted) {
             etMessage.setText("");
-            if (isMyUserMuted) {
-                etMessage.setHint("您已被教师单独禁言，暂停发言");
-            } else {
-                etMessage.setHint("全员禁言开启中，暂停发言");
-            }
+            etMessage.setHint(isMyUserMuted ? "已禁言" : "全员禁言中");
             etMessage.setHintTextColor(Color.parseColor("#DC2626"));
             etMessage.setEnabled(false);
             layoutInputBar.setBackgroundColor(Color.parseColor("#F3F4F6"));
@@ -1343,10 +1332,10 @@ public class MainActivity extends AppCompatActivity {
             btnToggleMorePanel.setText("+");
         } else {
             if (isGlobalMuted && isTeacher) {
-                etMessage.setHint("全员禁言中 (教师发言不受限)");
+                etMessage.setHint("全员禁言中");
                 etMessage.setHintTextColor(Color.parseColor("#D97706"));
             } else {
-                etMessage.setHint("请输入文本...");
+                etMessage.setHint("输入讨论内容...");
                 etMessage.setHintTextColor(Color.parseColor("#9CA3AF"));
             }
             etMessage.setEnabled(true);
@@ -1357,7 +1346,7 @@ public class MainActivity extends AppCompatActivity {
             btnSend.setTextColor(Color.WHITE);
 
             btnToggleMorePanel.setEnabled(true);
-            ViewCompat.setBackgroundTintList(btnToggleMorePanel, ColorStateList.valueOf(Color.parseColor("#9CA3AF")));
+            ViewCompat.setBackgroundTintList(btnToggleMorePanel, ColorStateList.valueOf(Color.parseColor("#64748B")));
         }
     }
 
@@ -1725,10 +1714,10 @@ public class MainActivity extends AppCompatActivity {
                     int maxP = r.optInt("max_players", 4);
                     boolean hasTeacher = r.optBoolean("has_teacher", false);
 
-                    String statusText = (curP >= maxP) ? " [已满员]" : " [可加入]";
-                    String teacherTag = hasTeacher ? " (教师旁听中)" : "";
-                    String itemStr = "[协作组] " + rTitle + " (" + curP + "/" + maxP + "人)"
-                            + statusText + teacherTag + "\n创建者: " + creator;
+                    String statusText = (curP >= maxP) ? "满员" : "可加入";
+                    String teacherTag = hasTeacher ? " · 教师在席" : "";
+                    String itemStr = rTitle + "  (" + curP + "/" + maxP + ")\n"
+                            + "组长：" + creator + " · " + statusText + teacherTag;
 
                     gameRoomDisplayList.add(itemStr);
                     gameRoomIdList.add(rId);
@@ -1736,7 +1725,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         if (gameRoomDisplayList.isEmpty()) {
-            gameRoomDisplayList.add("暂无协作小组");
+            gameRoomDisplayList.add("暂无研讨室");
             gameRoomIdList.add("");
         }
         if (gameRoomAdapter != null) {

@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#FFFFFF"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
-    android:layout_marginTop="8dp"
+    android:background="@drawable/bg_card_surface"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:layout_marginTop="6dp"
     android:layout_marginBottom="4dp"
-    android:padding="14dp"
-    android:elevation="1dp">
+    android:padding="14dp">
 
-    <!-- 1. 顶部：类型标签 + 标题 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -41,13 +40,12 @@
             android:layout_marginStart="8dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="事务标题"
-            android:textColor="#1F2937"
-            android:textSize="16sp"
+            android:text="标题"
+            android:textColor="#0F172A"
+            android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- 2. 发布者、时间与截止时间 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -60,30 +58,29 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="发布人：教师 · 19:30"
-            android:textColor="#9CA3AF"
+            android:text="教师 · 19:30"
+            android:textColor="#94A3B8"
             android:textSize="11sp" />
 
         <TextView
             android:id="@+id/tvAffairDeadline"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="截止时间：10-25 18:00"
+            android:text="截止：10-25 18:00"
             android:textColor="#DC2626"
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- 3. 正文内容 -->
     <TextView
         android:id="@+id/tvAffairContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:lineSpacingExtra="3dp"
-        android:text="事务详情内容..."
-        android:textColor="#374151"
+        android:text="内容..."
+        android:textColor="#334155"
         android:textSize="14sp" />
 
     <View
@@ -91,9 +88,8 @@
         android:layout_height="1dp"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="10dp"
-        android:background="#F3F4F6" />
+        android:background="#F1F5F9" />
 
-    <!-- 4. 底部纯操作栏（移除多余被挤压的已读文本，靠右排列整齐按钮） -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -103,39 +99,63 @@
         <Button
             android:id="@+id/btnEditAffair"
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
+            android:layout_height="32dp"
             android:layout_marginEnd="6dp"
-            android:backgroundTint="#F3F4F6"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="12dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
+            android:backgroundTint="#F1F5F9"
             android:text="编辑"
-            android:textColor="#374151"
+            android:textColor="#334155"
             android:textSize="11sp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnDeleteAffair"
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
+            android:layout_height="32dp"
             android:layout_marginEnd="6dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="12dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#FEE2E2"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
             android:text="删除"
             android:textColor="#DC2626"
             android:textSize="11sp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <Button
             android:id="@+id/btnConfirmAffair"
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
+            android:layout_height="32dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#1E88E5"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
             android:text="标为已读"
             android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="TouchTargetSizeCheck" />
     </LinearLayout>
 
 </LinearLayout>

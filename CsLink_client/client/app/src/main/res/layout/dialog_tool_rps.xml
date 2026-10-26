@@ -233,7 +233,14 @@
             android:text="下一局"
             android:textColor="#FFFFFF"
             android:textSize="12sp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:gravity="center" />
 
         <Button
             android:id="@+id/btnCloseToolRps"
@@ -242,7 +249,14 @@
             android:backgroundTint="#E2E8F0"
             android:text="关闭"
             android:textColor="#334155"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:gravity="center" />
     </LinearLayout>
 
 </LinearLayout>

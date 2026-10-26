@@ -8,7 +8,7 @@
     android:background="#F8FAFC"
     android:orientation="vertical">
 
-    <!-- 顶栏导航（右侧新增考勤日历入口） -->
+    <!-- 顶栏导航 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="52dp"
@@ -21,12 +21,17 @@
         <Button
             android:id="@+id/btnBack"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
-            android:backgroundTint="#1976D2"
+            android:layout_height="34dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:paddingStart="14dp"
+            android:paddingTop="0dp"
             android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
+            android:backgroundTint="#1565C0"
             android:text="返回"
             android:textColor="#FFFFFF"
             android:textSize="13sp"
@@ -46,12 +51,17 @@
         <Button
             android:id="@+id/btnAttendanceCalendar"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
-            android:backgroundTint="#1565C0"
+            android:layout_height="34dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:paddingStart="12dp"
+            android:paddingTop="0dp"
             android:paddingEnd="12dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
+            android:backgroundTint="#1565C0"
             android:text="考勤日历"
             android:textColor="#FFFFFF"
             android:textSize="12sp"
@@ -70,7 +80,6 @@
         android:paddingEnd="16dp"
         android:paddingBottom="14dp">
 
-        <!-- 班级全称与更名操作 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -86,27 +95,31 @@
                 android:maxLines="1"
                 android:text="班级：未连接"
                 android:textColor="#0F172A"
-                android:textSize="17sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 tools:ignore="HardcodedText" />
 
             <Button
                 android:id="@+id/btnEditClassName"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:minWidth="48dp"
-                android:minHeight="48dp"
+                android:layout_height="32dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="12dp"
+                android:paddingTop="0dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="0dp"
+                android:gravity="center"
                 android:backgroundTint="#1E88E5"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:text="修改班级"
+                android:text="修改名称"
                 android:textColor="#FFFFFF"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:visibility="gone"
                 tools:ignore="HardcodedText,TouchTargetSizeCheck" />
         </LinearLayout>
 
-        <!-- 统计信息与分段排序胶囊切换栏 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -165,7 +178,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 成员列表 -->
     <ListView
         android:id="@+id/lvRosterMembers"
         android:layout_width="match_parent"

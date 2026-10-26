@@ -13,7 +13,7 @@
         android:id="@+id/tvBuzzerHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="课堂即时抢答"
+        android:text="班级抢答"
         android:textColor="#E11D48"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -107,6 +107,13 @@
         android:backgroundTint="#E5E7EB"
         android:text="退出抢答"
         android:textColor="#374151"
-        android:textSize="13sp" />
+        android:textSize="13sp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:paddingTop="0dp"
+        android:paddingBottom="0dp"
+        android:gravity="center"/>
 
 </LinearLayout>

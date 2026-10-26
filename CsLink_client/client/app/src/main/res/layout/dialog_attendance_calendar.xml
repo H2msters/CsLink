@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#FFFFFF"
+    android:background="@drawable/bg_card_surface"
     android:orientation="vertical"
     android:padding="18dp">
 
@@ -18,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="课堂考勤与加分日历"
+            android:text="考勤日历"
             android:textColor="#0F172A"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -27,14 +28,20 @@
             android:id="@+id/btnCloseCalendar"
             android:layout_width="wrap_content"
             android:layout_height="32dp"
-            android:minWidth="48dp"
+            android:minWidth="0dp"
             android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="0dp"
+            android:gravity="center"
             android:backgroundTint="#E2E8F0"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
             android:text="关闭"
             android:textColor="#334155"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="HardcodedText,TouchTargetSizeCheck" />
     </LinearLayout>
 
     <!-- 原生交互日历控件 -->
@@ -61,7 +68,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="2026-10-25 考勤加分明细"
+            android:text="考勤明细"
             android:textColor="#1E40AF"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -70,7 +77,7 @@
             android:id="@+id/tvSelectedDateSummary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="共 0 人次"
+            android:text="0 人次"
             android:textColor="#1E88E5"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -95,7 +102,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="当日暂无课堂加分记录"
+            android:text="当日无记录"
             android:textColor="#94A3B8"
             android:textSize="13sp"
             android:visibility="visible" />

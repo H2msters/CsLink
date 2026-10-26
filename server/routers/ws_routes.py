@@ -18,7 +18,7 @@ class BuzzManager:
 
     def start(self, title: str):
         self.is_active = True
-        self.title = title.strip() if title.strip() else "随堂即时抢答"
+        self.title = title.strip() if title.strip() else "班级抢答"
         self.start_timestamp_ms = int(time.time() * 1000)
         self.winner = None
         self.cost_ms = 0
@@ -48,12 +48,12 @@ class BuzzManager:
 class VoteManager:
     def __init__(self):
         self.is_active = False
-        self.title = "随堂单选测验"
+        self.title = "班级测验"
         self.votes = {}
 
     def start(self, title: str):
         self.is_active = True
-        self.title = title.strip() if title and title.strip() else "随堂单选测验"
+        self.title = title.strip() if title and title.strip() else "班级测验"
         self.votes.clear()
 
     def submit(self, student_name: str, option: str) -> bool:
@@ -122,11 +122,10 @@ async def websocket_chat_endpoint(
     else:
         actual_role = "student"
 
-    actual_name = name.strip() if name and name.strip() else f"同学_{client_ip.split('.')[-1]}"
+    actual_name = name.strip() if name and name.strip() else f"学生_{client_ip.split('.')[-1]}"
     target_room_id = room.strip() if room and room.strip() else "lobby"
 
     user_record = manager.register_user(actual_name, actual_role)
-    # 以花名册持久化后的真实角色为准（例如已被教师任命为班长的学生）
     actual_role = user_record.get("role", actual_role)
 
     member_info = {
@@ -138,7 +137,6 @@ async def websocket_chat_endpoint(
 
     current_room = manager.move_user_to_room(websocket, target_room_id, member_info)
 
-    # 初始全量状态包
     init_payload = {
         "type": "init_classroom_state",
         "room_id": current_room.room_id,
@@ -174,7 +172,6 @@ async def websocket_chat_endpoint(
             current_user_role = sender_record.get("role", actual_role)
             current_room = manager.get_room_for_ws(websocket)
 
-            # ---------------- 身份同步校验指令 ----------------
             if msg_type == "get_my_identity":
                 await websocket.send_text(json.dumps({
                     "type": "my_identity",
@@ -187,7 +184,6 @@ async def websocket_chat_endpoint(
                 }, ensure_ascii=False))
                 continue
 
-            # ---------------- 考勤日历加分记录查询指令 ----------------
             if msg_type == "get_attendance_logs":
                 query_date = data.get("date", "").strip()
                 if not query_date:
@@ -203,7 +199,6 @@ async def websocket_chat_endpoint(
                 }, ensure_ascii=False))
                 continue
 
-            # ---------------- 客户端返回大厅时的即时刷新指令 ----------------
             if msg_type == "refresh_lobby":
                 await websocket.send_text(json.dumps({
                     "type": "room_list",
@@ -217,9 +212,9 @@ async def websocket_chat_endpoint(
                 }, ensure_ascii=False))
                 continue
 
-            # ---------------- 小组协作房间指令 ----------------
+            # ---------------- 小组指令 ----------------
             if msg_type == "create_room":
-                r_title = data.get("title", f"{actual_name}的协作组").strip()
+                r_title = data.get("title", f"{actual_name}的小组").strip()
                 max_p = int(data.get("max_players", 4))
                 new_room_id = f"group_{int(time.time() * 1000)}"
 
@@ -274,7 +269,7 @@ async def websocket_chat_endpoint(
                 if not target_room:
                     await websocket.send_text(json.dumps({
                         "type": "system",
-                        "content": "[加入失败] 该协作小组已解散或不存在",
+                        "content": "该小组已关闭",
                         "timestamp": int(time.time() * 1000)
                     }, ensure_ascii=False))
                     continue
@@ -283,7 +278,7 @@ async def websocket_chat_endpoint(
                 if target_room.is_full(is_teacher=is_teacher):
                     await websocket.send_text(json.dumps({
                         "type": "system",
-                        "content": f"[加入失败] 该小组已满员 ({target_room.max_players}/{target_room.max_players} 人)",
+                        "content": f"小组人数已满 ({target_room.max_players}/{target_room.max_players})",
                         "timestamp": int(time.time() * 1000)
                     }, ensure_ascii=False))
                     continue
@@ -311,7 +306,7 @@ async def websocket_chat_endpoint(
                     "sender": "系统",
                     "role": current_user_role,
                     "avatar": "",
-                    "content": f"{'【教师进入】' if is_teacher else ''}【{actual_name}】进入了小组",
+                    "content": f"{actual_name}（教师）进入小组" if is_teacher else f"{actual_name} 进入小组",
                     "timestamp": int(time.time() * 1000)
                 }
                 current_room.add_message(join_notice)
@@ -344,7 +339,7 @@ async def websocket_chat_endpoint(
                         "sender": "系统",
                         "role": current_user_role,
                         "avatar": "",
-                        "content": f"【{actual_name}】暂离了小组",
+                        "content": f"{actual_name} 离开小组",
                         "timestamp": int(time.time() * 1000)
                     }
                     await broadcast_to_room(old_room, leave_notice)
@@ -378,14 +373,14 @@ async def websocket_chat_endpoint(
                     disband_payload = {
                         "type": "room_disbanded",
                         "room_id": target_room_id,
-                        "message": f"该小组已被{'教师' if is_teacher else '组长'}解散",
+                        "message": "小组已解散",
                         "timestamp": int(time.time() * 1000)
                     }
                     await broadcast_to_room(deleted_room, disband_payload)
                     await broadcast_room_list_update()
                 continue
 
-            # ---------------- 班级事务指令（教师与班长均有权操作） ----------------
+            # ---------------- 班级事务指令（教师与班长） ----------------
             if current_user_role in ("teacher", "monitor"):
                 if msg_type == "publish_affair":
                     role_label = "教师" if current_user_role == "teacher" else "班长"
@@ -431,12 +426,12 @@ async def websocket_chat_endpoint(
                         })
                     continue
 
-            # ---------------- 教师专属管控指令 ----------------
+            # ---------------- 教师专属管控指令（精简系统消息文案） ----------------
             if current_user_role == "teacher":
                 if msg_type == "award_score":
                     target = data.get("target_student", "").strip()
                     delta = int(data.get("delta", 1))
-                    reason = data.get("reason", "课堂表现优异").strip()
+                    reason = data.get("reason", "课堂表现").strip()
 
                     if target:
                         new_score = db.add_user_score(target, delta, reason=reason, operator=actual_name)
@@ -451,7 +446,7 @@ async def websocket_chat_endpoint(
                             "sender": "系统",
                             "role": "teacher",
                             "avatar": "",
-                            "content": f"[课堂积分] 教师为【{target}】记分 {sign_str}分（{reason}），当前总分：{new_score}分",
+                            "content": f"课堂积分 · {target} {sign_str}分（{reason}）",
                             "timestamp": int(time.time() * 1000)
                         }
                         if "lobby" in manager.rooms:
@@ -471,7 +466,7 @@ async def websocket_chat_endpoint(
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": "[课堂管控] 教师已开启全班屏幕锁定，请抬头专心听讲" if manager.is_screen_locked else "[课堂管控] 教师已解除屏幕锁定",
+                        "content": "课堂管控 · 已开启全班锁屏" if manager.is_screen_locked else "课堂管控 · 已解除全班锁屏",
                         "timestamp": int(time.time() * 1000)
                     }
                     if "lobby" in manager.rooms:
@@ -491,7 +486,7 @@ async def websocket_chat_endpoint(
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": "[课堂管控] 教师已开启全员禁言" if manager.is_global_muted else "[课堂管控] 教师已解除全员禁言",
+                        "content": "课堂管控 · 已开启全员禁言" if manager.is_global_muted else "课堂管控 · 已解除全员禁言",
                         "timestamp": int(time.time() * 1000)
                     }
                     if "lobby" in manager.rooms:
@@ -514,7 +509,7 @@ async def websocket_chat_endpoint(
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": "[课堂讨论记录已由教师清空]",
+                        "content": "讨论记录已清空",
                         "timestamp": int(time.time() * 1000)
                     }
                     if "lobby" in manager.rooms:
@@ -536,7 +531,7 @@ async def websocket_chat_endpoint(
                             "sender": "系统",
                             "role": "teacher",
                             "avatar": "",
-                            "content": f"[班级更名] 教师已将班级名称修改为：【{manager.classroom_title}】",
+                            "content": f"班级名称已更新为：{manager.classroom_title}",
                             "timestamp": int(time.time() * 1000)
                         }
                         manager.rooms["lobby"].add_message(notice_msg)
@@ -544,7 +539,7 @@ async def websocket_chat_endpoint(
                     continue
 
                 elif msg_type == "start_buzz":
-                    buzz_title = data.get("title", "快速抢答环节")
+                    buzz_title = data.get("title", "班级抢答")
                     buzz_session.start(buzz_title)
                     await broadcast_to_all_rooms({
                         "type": "buzz_started",
@@ -553,7 +548,7 @@ async def websocket_chat_endpoint(
                     })
                     card_msg = {
                         "type": "card_buzz",
-                        "sender": "随堂互动",
+                        "sender": "班级互动",
                         "role": "teacher",
                         "avatar": "",
                         "content": buzz_session.title,
@@ -595,13 +590,13 @@ async def websocket_chat_endpoint(
                     }
                     await broadcast_to_all_rooms(pick_payload)
 
-                    round_prefix = "[新一轮点名开启] " if is_new_round else ""
+                    # 精简点名广播：消除“请【学生A】同学”与冗长括号，保证单行清晰呈现
                     notice_msg = {
                         "type": "system",
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": f"{round_prefix}[随机点名] 请【{winner_name}】同学回答问题 (本轮剩余未抽: {remaining_count}人)",
+                        "content": f"随机点名 · {winner_name}（余 {remaining_count} 人）",
                         "timestamp": int(time.time() * 1000)
                     }
                     manager.rooms["lobby"].add_message(notice_msg)
@@ -609,13 +604,13 @@ async def websocket_chat_endpoint(
                     continue
 
                 elif msg_type == "start_vote":
-                    vote_title = data.get("title", "随堂单选测验")
+                    vote_title = data.get("title", "班级测验")
                     vote_session.start(vote_title)
                     await broadcast_to_all_rooms(vote_session.get_state_payload())
 
                     card_msg = {
                         "type": "card_vote",
-                        "sender": "随堂互动",
+                        "sender": "班级互动",
                         "role": "teacher",
                         "avatar": "",
                         "content": vote_session.title,
@@ -633,10 +628,10 @@ async def websocket_chat_endpoint(
 
                         counts = final_state["counts"]
                         total = final_state["total"]
+                        # 精简投票统计：不再重复卡片已展示的题目名，单行清晰罗列票数
                         summary_text = (
-                            f"[随堂投票结果] 题目：{vote_session.title} | "
-                            f"A:{counts['A']}票  B:{counts['B']}票  C:{counts['C']}票  D:{counts['D']}票 "
-                            f"(共 {total} 人参与)"
+                            f"投票统计 · A:{counts['A']}  B:{counts['B']}  "
+                            f"C:{counts['C']}  D:{counts['D']}（共 {total} 人）"
                         )
                         notice_msg = {
                             "type": "system",
@@ -654,7 +649,6 @@ async def websocket_chat_endpoint(
                     target_student = data.get("target_name")
                     operation = data.get("operation")
                     
-                    # 1. 教师删除学生操作（修复原先不存在的 manager.online_users 报错）
                     if operation == "delete_user":
                         db.delete_user_db(target_student)
                         manager.roster.pop(target_student, None)
@@ -666,7 +660,7 @@ async def websocket_chat_endpoint(
                             "sender": "系统",
                             "role": "teacher",
                             "avatar": "",
-                            "content": f"[名册调整] 教师已将【{target_student}】移出班级名册",
+                            "content": f"名册变动 · 已移出 {target_student}",
                             "timestamp": int(time.time() * 1000)
                         }
                         if "lobby" in manager.rooms:
@@ -674,7 +668,6 @@ async def websocket_chat_endpoint(
                         await broadcast_to_all_rooms(delete_notice)
                         continue
 
-                    # 2. 其他管理操作
                     if target_student in manager.roster:
                         if operation == "toggle_mute":
                             new_mute_state = not manager.roster[target_student]["is_muted"]
@@ -682,18 +675,17 @@ async def websocket_chat_endpoint(
                         elif operation == "set_role":
                             new_role = data.get("new_role", "student")
                             manager.update_user_role(target_student, new_role)
-                            # 同步更新该学生在线 WebSocket 成员对象的 role
                             for r in manager.rooms.values():
                                 for m_ws, m_info in r.members.items():
                                     if m_info.get("name") == target_student:
                                         m_info["role"] = new_role
-                            role_cn = "班长" if new_role == "monitor" else "普通学生"
+                            role_cn = "班长" if new_role == "monitor" else "学生"
                             role_notice = {
                                 "type": "system",
                                 "sender": "系统",
                                 "role": "teacher",
                                 "avatar": "",
-                                "content": f"[职务任免] 教师已将【{target_student}】设为【{role_cn}】",
+                                "content": f"职务变更 · {target_student} 设为{role_cn}",
                                 "timestamp": int(time.time() * 1000)
                             }
                             if "lobby" in manager.rooms:
@@ -706,7 +698,7 @@ async def websocket_chat_endpoint(
                         await broadcast_roster_update()
                     continue
 
-            # ---------------- 学生提交抢答 ----------------
+            # ---------------- 学生提交抢答（精简耗时展示） ----------------
             if msg_type == "submit_buzz":
                 if current_user_role != "teacher" and buzz_session.submit(actual_name):
                     result_payload = {
@@ -718,19 +710,19 @@ async def websocket_chat_endpoint(
                     }
                     await broadcast_to_all_rooms(result_payload)
 
+                    sec_str = f"{buzz_session.cost_ms / 1000.0:.2f}s"
                     notice_msg = {
                         "type": "system",
                         "sender": "系统",
                         "role": "teacher",
                         "avatar": "",
-                        "content": f"[抢答结果] 恭喜【{buzz_session.winner}】率先抢答成功，耗时 {buzz_session.cost_ms} ms",
+                        "content": f"抢答结果 · {buzz_session.winner} 胜出（{sec_str}）",
                         "timestamp": int(time.time() * 1000)
                     }
                     manager.rooms["lobby"].add_message(notice_msg)
                     await broadcast_to_all_rooms(notice_msg)
                 continue
 
-            # ---------------- 学生提交随堂投票 ----------------
             if msg_type == "submit_vote":
                 if current_user_role != "teacher":
                     option = data.get("option", "")
@@ -738,7 +730,6 @@ async def websocket_chat_endpoint(
                         await broadcast_to_all_rooms(vote_session.get_state_payload())
                 continue
 
-            # ---------------- 事务回执 ----------------
             if msg_type == "confirm_affair":
                 if manager.confirm_affair(data.get("affair_id"), actual_name):
                     await broadcast_to_all_rooms({
@@ -764,7 +755,7 @@ async def websocket_chat_endpoint(
                         "sender": actual_name,
                         "role": current_user_role,
                         "avatar": sender_record.get("avatar", ""),
-                        "content": f"【{actual_name}】发起了猜拳 ({rule_text})",
+                        "content": f"{actual_name} 发起猜拳 · {rule_text}",
                         "timestamp": int(time.time() * 1000)
                     }
                     curr_room.add_message(card_msg)
@@ -832,7 +823,7 @@ async def websocket_chat_endpoint(
                     })
                 continue
 
-            # ---------------- 组内协同草稿白板 ----------------
+            # ---------------- 组内协同白板 ----------------
             elif msg_type == "canvas_open":
                 curr_room = manager.get_room_for_ws(websocket)
                 if curr_room and curr_room.room_id != "lobby":
@@ -842,7 +833,7 @@ async def websocket_chat_endpoint(
                             "sender": actual_name,
                             "role": current_user_role,
                             "avatar": sender_record.get("avatar", ""),
-                            "content": f"【{actual_name}】开启了协同白板草稿",
+                            "content": f"{actual_name} 开启协同白板",
                             "timestamp": int(time.time() * 1000)
                         }
                         curr_room.add_message(card_msg)
@@ -882,7 +873,7 @@ async def websocket_chat_endpoint(
                     })
                 continue
 
-            # ---------------- 资料更新（修复改名先后顺序 Bug） ----------------
+            # ---------------- 资料更新 ----------------
             if msg_type == "set_name":
                 new_name = data.get("username", actual_name).strip()
                 new_avatar = data.get("avatar", "")
@@ -914,7 +905,7 @@ async def websocket_chat_endpoint(
                 if (manager.is_global_muted and current_user_role != "teacher") or sender_record.get("is_muted", False):
                     await websocket.send_text(json.dumps({
                         "type": "system",
-                        "content": "[发言拦截] 您当前处于禁言状态或全员禁言已开启",
+                        "content": "当前处于禁言状态",
                         "timestamp": int(time.time() * 1000)
                     }, ensure_ascii=False))
                     continue

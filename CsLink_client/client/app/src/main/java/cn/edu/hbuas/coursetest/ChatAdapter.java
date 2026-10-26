@@ -94,17 +94,17 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         badgeBg.setCornerRadius(6f);
 
         if ("card_buzz".equals(msg.getType())) {
-            vh.tvCardBadge.setText("随堂抢答");
+            vh.tvCardBadge.setText("班级抢答");
             vh.tvCardBadge.setTextColor(Color.parseColor("#DC2626"));
             badgeBg.setColor(Color.parseColor("#FEE2E2"));
             vh.btnEnterCardAction.setText("参与抢答");
         } else if ("card_vote".equals(msg.getType())) {
-            vh.tvCardBadge.setText("随堂投票");
+            vh.tvCardBadge.setText("班级投票");
             vh.tvCardBadge.setTextColor(Color.parseColor("#15803D"));
             badgeBg.setColor(Color.parseColor("#DCFCE7"));
             vh.btnEnterCardAction.setText("参与投票");
         } else if ("card_rps".equals(msg.getType())) {
-            vh.tvCardBadge.setText("猜拳");
+            vh.tvCardBadge.setText("小组猜拳");
             vh.tvCardBadge.setTextColor(Color.parseColor("#0369A1"));
             badgeBg.setColor(Color.parseColor("#E0F2FE"));
             vh.btnEnterCardAction.setText("进入猜拳");
@@ -114,7 +114,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             badgeBg.setColor(Color.parseColor("#DCFCE7"));
             vh.btnEnterCardAction.setText("进入白板");
         }
-
         vh.tvCardBadge.setBackground(badgeBg);
 
         View.OnClickListener clickListener = v -> {
@@ -130,7 +129,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         String type = msg.getType();
         String timeStr = timeFormat.format(new Date(msg.getTimestamp()));
 
-        // 1. 系统通知消息
         if ("system".equals(type)) {
             vh.tvSystemNotice.setVisibility(View.VISIBLE);
             vh.tvSystemNotice.setText(msg.getContent());
@@ -141,7 +139,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         vh.tvSystemNotice.setVisibility(View.GONE);
 
-        // 2. 我发送的消息（靠右）
         if (msg.isMe()) {
             vh.layoutMyMsg.setVisibility(View.VISIBLE);
             vh.layoutOtherMsg.setVisibility(View.GONE);
@@ -165,9 +162,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 vh.tvMyContent.setVisibility(View.VISIBLE);
                 vh.tvMyContent.setText(msg.getContent());
             }
-        }
-        // 3. 他人发送的消息（靠左）
-        else {
+        } else {
             vh.layoutOtherMsg.setVisibility(View.VISIBLE);
             vh.layoutMyMsg.setVisibility(View.GONE);
 
@@ -265,7 +260,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView tvSystemNotice;
 
-        // 他人组件
         LinearLayout layoutOtherMsg;
         ImageView ivOtherAvatar;
         TextView tvOtherSender;
@@ -274,7 +268,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         TextView tvOtherContent;
         ImageView ivOtherImage;
 
-        // 自己组件
         LinearLayout layoutMyMsg;
         TextView tvMyTime;
         TextView tvMyRoleBadge;
