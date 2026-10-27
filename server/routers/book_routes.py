@@ -22,9 +22,10 @@ async def upload_book(
     title: str = Form(...),
     uploader: str = Form("教师")
 ):
-    """教师上传 PDF 书籍"""
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="只允许上传 PDF 格式文件")
+    """教师上传 PDF 或 Word 文档书籍"""
+    filename_lower = file.filename.lower()
+    if not filename_lower.endswith((".pdf", ".docx", ".doc")):
+        raise HTTPException(status_code=400, detail="只允许上传 PDF 或 Word (.docx/.doc) 格式文件")
 
     now_ts = int(time.time() * 1000)
     book_id = f"book_{now_ts}"
@@ -42,11 +43,20 @@ async def upload_book(
 
 @router.get("/file/{filename}")
 async def get_book_file(filename: str):
-    """读取并下载 PDF 文件"""
+    """读取并下载文件（支持 PDF 和 Word 格式）"""
     file_path = os.path.join(STORAGE_BOOKS_DIR, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="文件不存在")
-    return FileResponse(file_path, media_type="application/pdf", filename=filename)
+    
+    ext = filename.lower().split(".")[-1]
+    if ext == "pdf":
+        media_type = "application/pdf"
+    elif ext in ("docx", "doc"):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        media_type = "application/octet-stream"
+
+    return FileResponse(file_path, media_type=media_type, filename=filename)
 
 @router.delete("/{book_id}")
 async def delete_book(book_id: str):
