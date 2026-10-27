@@ -76,6 +76,24 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return new MessageViewHolder(view);
     }
 
+    /**
+     * 核心优化：支持 STREAM_TEXT 局部刷新，流式打字时只更新气泡文本，不重复解码头像与重绘背景
+     */
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position, @NonNull List<Object> payloads) {
+        if (!payloads.isEmpty() && holder instanceof MessageViewHolder) {
+            ChatMessage msg = messageList.get(position);
+            MessageViewHolder vh = (MessageViewHolder) holder;
+            if (msg.isMe()) {
+                setFormattedContent(vh.tvMyContent, msg.getContent());
+            } else {
+                setFormattedContent(vh.tvOtherContent, msg.getContent());
+            }
+            return;
+        }
+        super.onBindViewHolder(holder, position, payloads);
+    }
+
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         ChatMessage msg = messageList.get(position);
@@ -189,9 +207,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
-    /**
-     * 完美全功能 Markdown 富文本渲染器
-     */
     private void setFormattedContent(TextView tv, String rawContent) {
         if (TextUtils.isEmpty(rawContent)) {
             tv.setText("");
@@ -199,32 +214,16 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         String formatted = rawContent;
-
-        // 1. 标题 (# 标题转为大号粗体)
         formatted = formatted.replaceAll("(?m)^#\\s+(.*?)$", "<h3><b>$1</b></h3>");
         formatted = formatted.replaceAll("(?m)^##\\s+(.*?)$", "<h4><b>$1</b></h4>");
         formatted = formatted.replaceAll("(?m)^###\\s+(.*?)$", "<h5><b>$1</b></h5>");
-
-        // 2. 引用 (> 文本转为灰色斜体缩进)
         formatted = formatted.replaceAll("(?m)^>\\s*(.*?)$", "<font color='#64748B'><blockquote><i>$1</i></blockquote></font>");
-
-        // 3. 代码块 (`code`) 与 行内代码
         formatted = formatted.replaceAll("`([^`]+)`", "<font face='monospace' color='#0F172A'><small><code>$1</code></small></font>");
-
-        // 4. 加粗 (**text**) 与 斜体 (*text*)
         formatted = formatted.replaceAll("\\*\\*(.*?)\\*\\*", "<b>$1</b>");
         formatted = formatted.replaceAll("\\*(.*?)\\*", "<i>$1</i>");
-
-        // 5. 删除线 (~~text~~)
         formatted = formatted.replaceAll("~~(.*?)~~", "<strike>$1</strike>");
-
-        // 6. 无序列表与有序列表项优化
         formatted = formatted.replaceAll("(?m)^[-*]\\s+", "• &nbsp;");
-
-        // 7. 分割线 (---)
         formatted = formatted.replaceAll("(?m)^---$", "<hr>");
-
-        // 8. 换行符转 HTML
         formatted = formatted.replace("\n", "<br>");
 
         tv.setText(Html.fromHtml(formatted, Html.FROM_HTML_MODE_COMPACT));

@@ -23,6 +23,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SimpleItemAnimator;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
@@ -75,6 +76,7 @@ public class AiPlatformActivity extends AppCompatActivity {
     private final List<JSONObject> contextHistory = new ArrayList<>();
     private ChatAdapter chatAdapter;
 
+    private SharedPreferences sp;
     private String serverIp = "192.168.137.1";
     private String myNickname = "";
     private String myRole = "student";
@@ -103,7 +105,7 @@ public class AiPlatformActivity extends AppCompatActivity {
             });
         }
 
-        SharedPreferences sp = getSharedPreferences("CampusChatPrefs", Context.MODE_PRIVATE);
+        sp = getSharedPreferences("CampusChatPrefs", Context.MODE_PRIVATE);
         serverIp = sp.getString("server_ip", "192.168.137.1");
         myNickname = sp.getString("user_nickname", "学生");
         myRole = sp.getString("user_role", "student");
@@ -119,12 +121,23 @@ public class AiPlatformActivity extends AppCompatActivity {
         fetchAiStatus();
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 页面退出或进入后台时自动持久化保存当前对话记录
+        saveChatHistory();
+    }
+
     private void initModelPresets() {
         modelOptions.add(new ModelOption("qwen", "通义千问", "qwen3.8-flash", "通义千问 · qwen3.8-flash", "ICON_QWEN", R.drawable.ic_model_qwen));
         modelOptions.add(new ModelOption("deepseek", "DeepSeek", "deepseek-chat", "DeepSeek · V4.1 Flash", "ICON_DEEPSEEK", R.drawable.ic_model_deepseek));
         modelOptions.add(new ModelOption("glm", "智谱清言", "glm-4-flash", "智谱清言 · glm-4-flash", "ICON_GLM", R.drawable.ic_model_glm));
 
-        currentSelectedModel = modelOptions.get(0);
+        int lastIdx = sp.getInt("ai_last_model_idx_" + myNickname, 0);
+        if (lastIdx < 0 || lastIdx >= modelOptions.size()) {
+            lastIdx = 0;
+        }
+        currentSelectedModel = modelOptions.get(lastIdx);
     }
 
     private void initViews() {
@@ -146,41 +159,6 @@ public class AiPlatformActivity extends AppCompatActivity {
 
         btnAiConfig.setOnClickListener(v -> showTeacherConfigDialog());
 
-        List<String> labels = new ArrayList<>();
-        for (ModelOption opt : modelOptions) {
-            labels.add(opt.displayLabel);
-        }
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels);
-        spAiModelSelector.setAdapter(spinnerAdapter);
-
-        spAiModelSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                ModelOption selected = modelOptions.get(position);
-                if (currentSelectedModel == null || !currentSelectedModel.modelId.equals(selected.modelId)) {
-                    currentSelectedModel = selected;
-                    ivSelectedModelIcon.setImageResource(currentSelectedModel.iconResId);
-
-                    contextHistory.clear();
-                    aiMessages.clear();
-                    addWelcomeMessage();
-                    if (chatAdapter != null) {
-                        chatAdapter.notifyDataSetChanged();
-                    }
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-
-        btnAiClearChat.setOnClickListener(v -> {
-            contextHistory.clear();
-            aiMessages.clear();
-            addWelcomeMessage();
-            chatAdapter.notifyDataSetChanged();
-        });
-
         if (!TextUtils.isEmpty(myNickname) && !TextUtils.isEmpty(myAvatar)) {
             avatarMap.put(myNickname, myAvatar);
         }
@@ -189,16 +167,160 @@ public class AiPlatformActivity extends AppCompatActivity {
         rvAiChat.setLayoutManager(lm);
         rvAiChat.setAdapter(chatAdapter);
 
-        addWelcomeMessage();
+        // 关闭 RecyclerView 默认变更动画，彻底消除打字重影
+        if (rvAiChat.getItemAnimator() instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) rvAiChat.getItemAnimator()).setSupportsChangeAnimations(false);
+        }
+        rvAiChat.setItemAnimator(null);
+
+        List<String> labels = new ArrayList<>();
+        for (ModelOption opt : modelOptions) {
+            labels.add(opt.displayLabel);
+        }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels);
+        spAiModelSelector.setAdapter(spinnerAdapter);
+
+        int initPos = modelOptions.indexOf(currentSelectedModel);
+        if (initPos >= 0) {
+            spAiModelSelector.setSelection(initPos, false);
+            ivSelectedModelIcon.setImageResource(currentSelectedModel.iconResId);
+        }
+
+        // 首次进入加载本地保存的历史聊天记录
+        loadChatHistory();
+
+        spAiModelSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                ModelOption selected = modelOptions.get(position);
+                if (currentSelectedModel == null || !currentSelectedModel.modelId.equals(selected.modelId)) {
+                    // 切换前先保存旧模型的聊天记录
+                    saveChatHistory();
+
+                    currentSelectedModel = selected;
+                    ivSelectedModelIcon.setImageResource(currentSelectedModel.iconResId);
+                    sp.edit().putInt("ai_last_model_idx_" + myNickname, position).apply();
+
+                    // 加载新模型的历史记录（若无记录则显示欢迎语）
+                    loadChatHistory();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // 清空对话增加二次确认弹窗
+        btnAiClearChat.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("清空对话")
+                    .setMessage("确定要清空当前模型（" + currentSelectedModel.brandName + "）的聊天记录吗？清空后无法恢复。")
+                    .setPositiveButton("确定清空", (dialog, which) -> {
+                        contextHistory.clear();
+                        aiMessages.clear();
+                        addWelcomeMessage();
+                        saveChatHistory();
+                        chatAdapter.notifyDataSetChanged();
+                        Toast.makeText(this, "当前对话已清空", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        });
 
         btnAiSend.setOnClickListener(v -> sendPromptToAi());
     }
 
+    /**
+     * 将当前模型的聊天界面消息与上下文历史持久化保存到本地 SharedPreferences
+     */
+    private void saveChatHistory() {
+        if (sp == null || currentSelectedModel == null) return;
+        try {
+            JSONArray msgArr = new JSONArray();
+            for (ChatMessage m : aiMessages) {
+                JSONObject obj = new JSONObject();
+                obj.put("type", m.getType());
+                obj.put("sender", m.getSender());
+                obj.put("role", m.getRole());
+                String content = m.getContent();
+                if ("正在思考......".equals(content)) {
+                    content = "（上次生成未完成）";
+                }
+                obj.put("content", content);
+                // 自己发送的消息不重复存储大体积头像 Base64，读取时直接关联 myAvatar
+                obj.put("avatar", m.isMe() ? "" : m.getAvatar());
+                obj.put("isMe", m.isMe());
+                obj.put("timestamp", m.getTimestamp());
+                msgArr.put(obj);
+            }
+
+            JSONArray ctxArr = new JSONArray();
+            for (JSONObject ctx : contextHistory) {
+                ctxArr.put(ctx);
+            }
+
+            String keyPrefix = "ai_history_" + myNickname + "_" + currentSelectedModel.modelId;
+            sp.edit()
+                    .putString(keyPrefix + "_msgs", msgArr.toString())
+                    .putString(keyPrefix + "_ctx", ctxArr.toString())
+                    .apply();
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * 从本地 SharedPreferences 恢复当前模型的聊天记录与上下文
+     */
+    private void loadChatHistory() {
+        aiMessages.clear();
+        contextHistory.clear();
+
+        if (sp != null && currentSelectedModel != null) {
+            String keyPrefix = "ai_history_" + myNickname + "_" + currentSelectedModel.modelId;
+            String msgsStr = sp.getString(keyPrefix + "_msgs", "");
+            String ctxStr = sp.getString(keyPrefix + "_ctx", "");
+
+            if (!TextUtils.isEmpty(msgsStr)) {
+                try {
+                    JSONArray msgArr = new JSONArray(msgsStr);
+                    for (int i = 0; i < msgArr.length(); i++) {
+                        JSONObject o = msgArr.getJSONObject(i);
+                        boolean isMe = o.optBoolean("isMe", false);
+                        String avatar = isMe ? myAvatar : o.optString("avatar", currentSelectedModel.avatarCode);
+                        aiMessages.add(new ChatMessage(
+                                o.optString("type", "chat"),
+                                o.optString("sender", ""),
+                                o.optString("role", "student"),
+                                o.optString("content", ""),
+                                avatar,
+                                isMe,
+                                o.optLong("timestamp", System.currentTimeMillis())
+                        ));
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            if (!TextUtils.isEmpty(ctxStr)) {
+                try {
+                    JSONArray ctxArr = new JSONArray(ctxStr);
+                    for (int i = 0; i < ctxArr.length(); i++) {
+                        contextHistory.add(ctxArr.getJSONObject(i));
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (aiMessages.isEmpty()) {
+            addWelcomeMessage();
+        }
+
+        if (chatAdapter != null) {
+            chatAdapter.notifyDataSetChanged();
+            rvAiChat.scrollToPosition(Math.max(0, aiMessages.size() - 1));
+        }
+    }
+
     private void addWelcomeMessage() {
-        boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
-        String text = isTeacher
-                ? "你好，当前对话模型为 " + currentSelectedModel.modelId + "。"
-                : "你好，欢迎使用 AI 平台（每次提问消耗 " + costPerMsg + " 积分）。";
+        String text = "你好！我是**图书管理员**。你可以问我任何问题，我都会为你解答。";
 
         aiMessages.add(new ChatMessage(
                 "chat",
@@ -235,15 +357,12 @@ public class AiPlatformActivity extends AppCompatActivity {
         boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
         tvAiUserScore.setText("积分: " + currentScore);
         if (isTeacher) {
-            etAiPrompt.setHint("输入提问内容...");
+            etAiPrompt.setHint("检索图书角藏书或提问百科知识...");
         } else {
-            etAiPrompt.setHint("输入提问内容（消耗 " + costPerMsg + " 积分）");
+            etAiPrompt.setHint("找书或提问百科（消耗 " + costPerMsg + " 积分）");
         }
     }
 
-    /**
-     * 防抽搐流式打字机交互核心实现
-     */
     private void sendPromptToAi() {
         String prompt = etAiPrompt.getText().toString().trim();
         if (TextUtils.isEmpty(prompt)) return;
@@ -264,14 +383,14 @@ public class AiPlatformActivity extends AppCompatActivity {
         ChatMessage userMsg = new ChatMessage("chat", myNickname, myRole, prompt, myAvatar, true, System.currentTimeMillis());
         aiMessages.add(userMsg);
         chatAdapter.notifyItemInserted(aiMessages.size() - 1);
-        rvAiChat.smoothScrollToPosition(aiMessages.size() - 1);
+        rvAiChat.scrollToPosition(aiMessages.size() - 1);
 
-        // 2. 预先添加一个空的 AI 气泡
+        // 2. 预先添加带有“正在思考......”占位的 AI 气泡
         ChatMessage aiMsg = new ChatMessage(
                 "chat",
                 activeModel.brandName,
                 "model:" + activeModel.modelId,
-                "",
+                "正在思考......",
                 activeModel.avatarCode,
                 false,
                 System.currentTimeMillis()
@@ -280,6 +399,7 @@ public class AiPlatformActivity extends AppCompatActivity {
         int aiMsgIdx = aiMessages.size() - 1;
         chatAdapter.notifyItemInserted(aiMsgIdx);
         rvAiChat.scrollToPosition(aiMsgIdx);
+        saveChatHistory();
 
         new Thread(() -> {
             try {
@@ -310,7 +430,8 @@ public class AiPlatformActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     BufferedSource source = response.body().source();
                     StringBuilder fullReply = new StringBuilder();
-                    final boolean[] isFirstChunk = {true}; // 修复：用数组包装使其在Lambda中可用
+                    final boolean[] isFirstChunk = {true};
+                    long lastUiUpdateTime = 0L;
 
                     while (!source.exhausted()) {
                         String line = source.readUtf8Line();
@@ -322,22 +443,31 @@ public class AiPlatformActivity extends AppCompatActivity {
                                 JSONObject json = new JSONObject(data);
                                 if (json.has("error")) {
                                     String err = json.getString("error");
-                                    runOnUiThread(() -> Toast.makeText(this, err, Toast.LENGTH_LONG).show());
+                                    runOnUiThread(() -> {
+                                        aiMsg.setContent("生成中断：" + err);
+                                        chatAdapter.notifyItemChanged(aiMsgIdx, "STREAM_TEXT");
+                                        saveChatHistory();
+                                        Toast.makeText(this, err, Toast.LENGTH_LONG).show();
+                                    });
                                     break;
                                 }
                                 if (json.has("content")) {
                                     String delta = json.getString("content");
                                     fullReply.append(delta);
 
-                                    // 仅更新文本，不频繁触发滚动防止抖动
-                                    runOnUiThread(() -> {
-                                        aiMsg.setContent(fullReply.toString());
-                                        chatAdapter.notifyItemChanged(aiMsgIdx);
-                                        if (isFirstChunk[0]) {
-                                            rvAiChat.scrollToPosition(aiMsgIdx);
-                                            isFirstChunk[0] = false;
-                                        }
-                                    });
+                                    long now = System.currentTimeMillis();
+                                    if (isFirstChunk[0] || (now - lastUiUpdateTime) >= 60) {
+                                        lastUiUpdateTime = now;
+                                        final String snapshot = fullReply.toString();
+                                        runOnUiThread(() -> {
+                                            aiMsg.setContent(snapshot);
+                                            chatAdapter.notifyItemChanged(aiMsgIdx, "STREAM_TEXT");
+                                            if (isFirstChunk[0]) {
+                                                rvAiChat.scrollToPosition(aiMsgIdx);
+                                                isFirstChunk[0] = false;
+                                            }
+                                        });
+                                    }
                                 }
                                 if (json.has("score")) {
                                     currentScore = json.getInt("score");
@@ -347,24 +477,42 @@ public class AiPlatformActivity extends AppCompatActivity {
                         }
                     }
 
-                    JSONObject uTurn = new JSONObject();
-                    uTurn.put("role", "user");
-                    uTurn.put("content", prompt);
-                    contextHistory.add(uTurn);
+                    if (fullReply.length() > 0) {
+                        final String finalText = fullReply.toString();
 
-                    JSONObject aTurn = new JSONObject();
-                    aTurn.put("role", "assistant");
-                    aTurn.put("content", fullReply.toString());
-                    contextHistory.add(aTurn);
+                        JSONObject uTurn = new JSONObject();
+                        uTurn.put("role", "user");
+                        uTurn.put("content", prompt);
+                        contextHistory.add(uTurn);
+
+                        JSONObject aTurn = new JSONObject();
+                        aTurn.put("role", "assistant");
+                        aTurn.put("content", finalText);
+                        contextHistory.add(aTurn);
+
+                        runOnUiThread(() -> {
+                            aiMsg.setContent(finalText);
+                            chatAdapter.notifyItemChanged(aiMsgIdx, "STREAM_TEXT");
+                            saveChatHistory();
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        aiMsg.setContent("服务响应异常，请稍后重试。");
+                        chatAdapter.notifyItemChanged(aiMsgIdx, "STREAM_TEXT");
+                        saveChatHistory();
+                    });
                 }
 
                 runOnUiThread(() -> {
                     btnAiSend.setEnabled(true);
                     btnAiSend.setText("发送");
-                    rvAiChat.smoothScrollToPosition(aiMsgIdx); // 生成完毕后平滑定位到底部
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
+                    aiMsg.setContent("网络异常：" + e.getMessage());
+                    chatAdapter.notifyItemChanged(aiMsgIdx, "STREAM_TEXT");
+                    saveChatHistory();
                     Toast.makeText(this, "流式传输异常: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     btnAiSend.setEnabled(true);
                     btnAiSend.setText("发送");

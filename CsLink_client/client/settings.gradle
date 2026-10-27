@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "course test"
+rootProject.name = "CsLink"
 include ':app'

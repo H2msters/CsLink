@@ -2,7 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 from routers import ws_routes, book_routes, ai_routes
 
-app = FastAPI(title="Campus Interactive Hub")
+app = FastAPI(title="CsLink")
 
 app.include_router(ws_routes.router)
 app.include_router(book_routes.router)
