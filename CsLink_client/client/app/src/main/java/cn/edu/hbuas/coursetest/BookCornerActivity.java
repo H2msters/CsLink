@@ -9,11 +9,13 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
+import android.util.Xml;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
@@ -28,11 +30,17 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.xmlpull.v1.XmlPullParser;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -55,8 +63,9 @@ public class BookCornerActivity extends AppCompatActivity {
     private String myNickname = "";
     private OkHttpClient httpClient;
 
-    private final ActivityResultLauncher<String> pdfPickerLauncher = registerForActivityResult(
-            new ActivityResultContracts.GetContent(),
+    // 支持同时选择 PDF 与 Word (.docx / .doc) 文档
+    private final ActivityResultLauncher<String[]> bookPickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
             uri -> {
                 if (uri != null) {
                     showUploadDialog(uri);
@@ -101,7 +110,11 @@ public class BookCornerActivity extends AppCompatActivity {
 
         boolean isTeacher = "teacher".equalsIgnoreCase(myRole);
         btnUploadBook.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
-        btnUploadBook.setOnClickListener(v -> pdfPickerLauncher.launch("application/pdf"));
+        btnUploadBook.setOnClickListener(v -> bookPickerLauncher.launch(new String[]{
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/msword"
+        }));
 
         bookAdapter = new BookAdapter();
         rvBooks.setLayoutManager(new LinearLayoutManager(this));
@@ -147,41 +160,88 @@ public class BookCornerActivity extends AppCompatActivity {
     }
 
     private void showUploadDialog(Uri uri) {
-        String defaultName = getFileNameFromUri(uri);
+        String originalFileName = getFileNameFromUri(uri);
+        String lowerName = originalFileName.toLowerCase(Locale.ROOT);
+        if (!lowerName.endsWith(".pdf") && !lowerName.endsWith(".docx") && !lowerName.endsWith(".doc")) {
+            Toast.makeText(this, "请选择 PDF 或 Word (.docx/.doc) 格式文件", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String defaultTitle = originalFileName;
+        int dotIdx = originalFileName.lastIndexOf('.');
+        if (dotIdx > 0) {
+            defaultTitle = originalFileName.substring(0, dotIdx);
+        }
+
+        // 定义一个 effectively final 的常量供 Lambda 表达式安全调用
+        final String finalDefaultTitle = defaultTitle;
+        final String finalOriginalFileName = originalFileName;
+
         final EditText input = new EditText(this);
-        input.setHint("输入书籍展示名称");
-        input.setText(defaultName.replace(".pdf", ""));
+        input.setHint("输入书籍或文档展示名称");
+        input.setText(finalDefaultTitle);
 
         new AlertDialog.Builder(this)
-                .setTitle("上传 PDF 书籍")
+                .setTitle("上传图书 / Word 文档")
                 .setView(input)
                 .setPositiveButton("开始上传", (dialog, which) -> {
                     String title = input.getText().toString().trim();
-                    uploadPdfFile(uri, TextUtils.isEmpty(title) ? defaultName : title);
+                    uploadBookFile(uri, TextUtils.isEmpty(title) ? finalDefaultTitle : title, finalOriginalFileName);
                 })
                 .setNegativeButton("取消", null)
                 .show();
     }
 
-    private void uploadPdfFile(Uri uri, String bookTitle) {
+    private void uploadBookFile(Uri uri, String bookTitle, String originalFileName) {
         ProgressDialog progress = new ProgressDialog(this);
-        progress.setMessage("正在上传书籍到中枢...");
+        progress.setMessage("正在上传文档到中枢...");
         progress.setCancelable(false);
         progress.show();
 
         new Thread(() -> {
             try {
                 InputStream inputStream = getContentResolver().openInputStream(uri);
-                byte[] bytes = new byte[inputStream.available()];
-                inputStream.read(bytes);
+                if (inputStream == null) {
+                    runOnUiThread(() -> {
+                        progress.dismiss();
+                        Toast.makeText(this, "无法读取所选文件", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+
+                ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = inputStream.read(buf)) != -1) {
+                    byteBuffer.write(buf, 0, len);
+                }
                 inputStream.close();
+                byte[] bytes = byteBuffer.toByteArray();
+
+                // 保留原始文件真实扩展名 (.pdf / .docx / .doc)
+                String ext = ".pdf";
+                String lowerOrig = originalFileName.toLowerCase(Locale.ROOT);
+                if (lowerOrig.endsWith(".docx")) {
+                    ext = ".docx";
+                } else if (lowerOrig.endsWith(".doc")) {
+                    ext = ".doc";
+                }
+
+                String mimeType = "application/pdf";
+                if (".docx".equals(ext)) {
+                    mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                } else if (".doc".equals(ext)) {
+                    mimeType = "application/msword";
+                }
+
+                String uploadFileName = bookTitle + ext;
 
                 RequestBody requestBody = new MultipartBody.Builder()
                         .setType(MultipartBody.FORM)
                         .addFormDataPart("title", bookTitle)
                         .addFormDataPart("uploader", myNickname)
-                        .addFormDataPart("file", bookTitle + ".pdf",
-                                RequestBody.create(MediaType.parse("application/pdf"), bytes))
+                        .addFormDataPart("file", uploadFileName,
+                                RequestBody.create(MediaType.parse(mimeType), bytes))
                         .build();
 
                 Request request = new Request.Builder()
@@ -196,7 +256,7 @@ public class BookCornerActivity extends AppCompatActivity {
                         Toast.makeText(this, "上传成功", Toast.LENGTH_SHORT).show();
                         loadBookList();
                     } else {
-                        Toast.makeText(this, "上传失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "上传失败（状态码: " + response.code() + "）", Toast.LENGTH_SHORT).show();
                     }
                 });
             } catch (Exception e) {
@@ -213,13 +273,13 @@ public class BookCornerActivity extends AppCompatActivity {
         if (!cacheDir.exists()) cacheDir.mkdirs();
         File localFile = new File(cacheDir, book.filename);
 
-        if (localFile.exists()) {
+        if (localFile.exists() && localFile.length() > 0) {
             launchReader(localFile, book.title);
             return;
         }
 
         ProgressDialog downloadDialog = new ProgressDialog(this);
-        downloadDialog.setMessage("首次打开，正在下载书籍...");
+        downloadDialog.setMessage("首次打开，正在下载文档...");
         downloadDialog.setCancelable(false);
         downloadDialog.show();
 
@@ -248,7 +308,7 @@ public class BookCornerActivity extends AppCompatActivity {
                 } else {
                     runOnUiThread(() -> {
                         downloadDialog.dismiss();
-                        Toast.makeText(this, "下载书籍失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "下载文档失败", Toast.LENGTH_SHORT).show();
                     });
                 }
             } catch (Exception e) {
@@ -261,10 +321,74 @@ public class BookCornerActivity extends AppCompatActivity {
     }
 
     private void launchReader(File file, String title) {
-        Intent intent = new Intent(this, PdfViewerActivity.class);
-        intent.putExtra(PdfViewerActivity.EXTRA_PDF_PATH, file.getAbsolutePath());
-        intent.putExtra(PdfViewerActivity.EXTRA_BOOK_TITLE, title);
-        startActivity(intent);
+        String lower = file.getName().toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".docx") || lower.endsWith(".doc")) {
+            openWordReaderDialog(file, title);
+        } else {
+            Intent intent = new Intent(this, PdfViewerActivity.class);
+            intent.putExtra(PdfViewerActivity.EXTRA_PDF_PATH, file.getAbsolutePath());
+            intent.putExtra(PdfViewerActivity.EXTRA_BOOK_TITLE, title);
+            startActivity(intent);
+        }
+    }
+
+    /**
+     * 内置轻量级 Word (.docx) 阅读器弹窗，无需手机安装第三方 Office 软件即可直接阅读全文
+     */
+    private void openWordReaderDialog(File file, String title) {
+        ProgressDialog loading = new ProgressDialog(this);
+        loading.setMessage("正在解析 Word 文档内容...");
+        loading.show();
+
+        new Thread(() -> {
+            String extracted = extractDocxText(file);
+            runOnUiThread(() -> {
+                loading.dismiss();
+                ScrollView scrollView = new ScrollView(this);
+                TextView tvContent = new TextView(this);
+                tvContent.setPadding(52, 36, 52, 36);
+                tvContent.setTextSize(15);
+                tvContent.setLineSpacing(0, 1.35f);
+                tvContent.setTextIsSelectable(true);
+                tvContent.setText(TextUtils.isEmpty(extracted)
+                        ? "（未能直接预览该格式文本，你可在 AI 平台向图书管理员提问该文档内容）"
+                        : extracted);
+                scrollView.addView(tvContent);
+
+                new AlertDialog.Builder(this)
+                        .setTitle("📖 " + title)
+                        .setView(scrollView)
+                        .setPositiveButton("关闭阅读", null)
+                        .show();
+            });
+        }).start();
+    }
+
+    private String extractDocxText(File docxFile) {
+        StringBuilder sb = new StringBuilder();
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(docxFile))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if ("word/document.xml".equals(entry.getName())) {
+                    XmlPullParser parser = Xml.newPullParser();
+                    parser.setInput(zis, "UTF-8");
+                    int eventType = parser.getEventType();
+                    while (eventType != XmlPullParser.END_DOCUMENT) {
+                        if (eventType == XmlPullParser.START_TAG && "t".equals(parser.getName())) {
+                            String text = parser.nextText();
+                            if (text != null) {
+                                sb.append(text);
+                            }
+                        } else if (eventType == XmlPullParser.END_TAG && "p".equals(parser.getName())) {
+                            sb.append("\n\n");
+                        }
+                        eventType = parser.next();
+                    }
+                    break;
+                }
+            }
+        } catch (Exception ignored) {}
+        return sb.toString().trim();
     }
 
     private void deleteBook(BookItem book) {
@@ -290,7 +414,7 @@ public class BookCornerActivity extends AppCompatActivity {
     }
 
     private String getFileNameFromUri(Uri uri) {
-        String name = "书籍.pdf";
+        String name = "文档.pdf";
         try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
             if (cursor != null && cursor.moveToFirst()) {
                 int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
@@ -311,8 +435,13 @@ public class BookCornerActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull BookViewHolder holder, int position) {
             BookItem item = bookList.get(position);
-            holder.tvBookTitle.setText(item.title);
-            String sizeStr = String.format("%.1f MB", item.fileSize / (1024.0 * 1024.0));
+            String lower = item.filename != null ? item.filename.toLowerCase(Locale.ROOT) : "";
+            String badge = (lower.endsWith(".docx") || lower.endsWith(".doc")) ? "[Word] " : "[PDF] ";
+            holder.tvBookTitle.setText(badge + item.title);
+
+            String sizeStr = item.fileSize < 1024 * 1024
+                    ? String.format(Locale.getDefault(), "%.1f KB", Math.max(1.0, item.fileSize / 1024.0))
+                    : String.format(Locale.getDefault(), "%.1f MB", item.fileSize / (1024.0 * 1024.0));
             holder.tvBookMeta.setText("上传者: " + item.uploader + " · " + sizeStr);
 
             boolean isTeacher = "teacher".equalsIgnoreCase(myRole);

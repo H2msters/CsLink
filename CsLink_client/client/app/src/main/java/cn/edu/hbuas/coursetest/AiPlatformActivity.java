@@ -130,7 +130,7 @@ public class AiPlatformActivity extends AppCompatActivity {
 
     private void initModelPresets() {
         modelOptions.add(new ModelOption("qwen", "通义千问", "qwen3.8-flash", "通义千问 · qwen3.8-flash", "ICON_QWEN", R.drawable.ic_model_qwen));
-        modelOptions.add(new ModelOption("deepseek", "DeepSeek", "deepseek-chat", "DeepSeek · V4.1 Flash", "ICON_DEEPSEEK", R.drawable.ic_model_deepseek));
+        modelOptions.add(new ModelOption("deepseek", "DeepSeek", "deepseek-flash", "DeepSeek · V4.1 Flash (1017)", "ICON_DEEPSEEK", R.drawable.ic_model_deepseek));
         modelOptions.add(new ModelOption("glm", "智谱清言", "glm-4-flash", "智谱清言 · glm-4-flash", "ICON_GLM", R.drawable.ic_model_glm));
 
         int lastIdx = sp.getInt("ai_last_model_idx_" + myNickname, 0);
@@ -320,7 +320,7 @@ public class AiPlatformActivity extends AppCompatActivity {
     }
 
     private void addWelcomeMessage() {
-        String text = "你好！我是**图书管理员**。你可以问我任何问题，我都会为你解答。";
+        String text = "我是班级专属的 **AI 图书管理员**。无论是查找馆藏电子书、解答学科难题，还是探索各类百科知识，我都能随时为你解答！";
 
         aiMessages.add(new ChatMessage(
                 "chat",
