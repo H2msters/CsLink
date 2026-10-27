@@ -356,7 +356,7 @@ public class BookCornerActivity extends AppCompatActivity {
                 scrollView.addView(tvContent);
 
                 new AlertDialog.Builder(this)
-                        .setTitle("📖 " + title)
+                        .setTitle(title)
                         .setView(scrollView)
                         .setPositiveButton("关闭阅读", null)
                         .show();
