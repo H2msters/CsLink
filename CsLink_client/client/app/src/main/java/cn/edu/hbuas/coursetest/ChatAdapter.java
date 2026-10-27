@@ -255,6 +255,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private void renderAvatar(ImageView iv, String sender, String avatarBase64) {
+        // 1. 先保留三个 AI 大模型的专属图标判断
         if ("ICON_QWEN".equals(avatarBase64)) {
             iv.setBackgroundColor(Color.TRANSPARENT);
             iv.setImageResource(R.drawable.ic_model_qwen);
@@ -269,21 +270,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             return;
         }
 
-        String effectiveAvatar = avatarBase64;
-        if (TextUtils.isEmpty(effectiveAvatar) && userAvatarMap != null) {
-            effectiveAvatar = userAvatarMap.get(sender);
-        }
-        if (!TextUtils.isEmpty(effectiveAvatar)) {
+        // 2. 如果用户上传过自定义头像（Base64），则解码显示自定义头像
+        if (avatarBase64 != null && !avatarBase64.trim().isEmpty()) {
             try {
-                byte[] bytes = Base64.decode(effectiveAvatar, Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                if (bitmap != null) {
-                    iv.setImageBitmap(bitmap);
+                String cleanBase64 = avatarBase64.contains(",")
+                        ? avatarBase64.substring(avatarBase64.indexOf(",") + 1)
+                        : avatarBase64;
+                byte[] decoded = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT);
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+                if (bmp != null) {
+                    iv.setBackgroundColor(Color.TRANSPARENT);
+                    iv.setImageBitmap(bmp);
                     return;
                 }
             } catch (Exception ignored) {}
         }
-        iv.setImageResource(R.mipmap.ic_launcher_round);
+
+        // 3. 【核心修改】没有自定义头像时，统一使用 App Logo 作为默认头像！
+        iv.setBackgroundColor(Color.TRANSPARENT);
+        iv.setImageResource(R.drawable.ic_app_logo);
     }
 
     private void renderBase64Image(ImageView iv, String imgBase64) {

@@ -87,13 +87,13 @@ public class RosterAdapter extends ArrayAdapter<MainActivity.RosterUser> {
                 if (bitmap != null) {
                     holder.ivAvatar.setImageBitmap(bitmap);
                 } else {
-                    holder.ivAvatar.setImageResource(R.mipmap.ic_launcher_round);
+                    holder.ivAvatar.setImageResource(R.drawable.ic_app_logo);
                 }
             } catch (Exception e) {
-                holder.ivAvatar.setImageResource(R.mipmap.ic_launcher_round);
+                holder.ivAvatar.setImageResource(R.drawable.ic_app_logo);
             }
         } else {
-            holder.ivAvatar.setImageResource(R.mipmap.ic_launcher_round);
+            holder.ivAvatar.setImageResource(R.drawable.ic_app_logo);
         }
 
         // 3. 角色身份徽章

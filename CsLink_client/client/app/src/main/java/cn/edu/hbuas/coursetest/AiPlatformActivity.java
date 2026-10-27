@@ -130,8 +130,8 @@ public class AiPlatformActivity extends AppCompatActivity {
 
     private void initModelPresets() {
         modelOptions.add(new ModelOption("qwen", "通义千问", "qwen3.8-flash", "通义千问 · qwen3.8-flash", "ICON_QWEN", R.drawable.ic_model_qwen));
-        modelOptions.add(new ModelOption("deepseek", "DeepSeek", "deepseek-flash", "DeepSeek · V4.1 Flash (1017)", "ICON_DEEPSEEK", R.drawable.ic_model_deepseek));
-        modelOptions.add(new ModelOption("glm", "智谱清言", "glm-4-flash", "智谱清言 · glm-4-flash", "ICON_GLM", R.drawable.ic_model_glm));
+        modelOptions.add(new ModelOption("deepseek", "DeepSeek", "deepseek-v4.1-flash-1017", "deepseek-v4.1-flash-1017", "ICON_DEEPSEEK", R.drawable.ic_model_deepseek));
+        modelOptions.add(new ModelOption("glm", "智谱清言", "glm-5.3", "智谱清言 · glm-5.3", "ICON_GLM", R.drawable.ic_model_glm));
 
         int lastIdx = sp.getInt("ai_last_model_idx_" + myNickname, 0);
         if (lastIdx < 0 || lastIdx >= modelOptions.size()) {
