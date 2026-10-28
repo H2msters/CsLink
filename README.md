@@ -97,6 +97,3 @@ CsLink/
 
 注：以教师角色登录后，可在 AI 问答界面右上角「API 管理」中修改各模型的 API Key、接口地址（Base URL）及单次提问积分参数。
 
-## 五、 许可证
-
-本项目采用 [MIT License](LICENSE) 许可证。
